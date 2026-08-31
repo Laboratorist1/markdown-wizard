@@ -1,0 +1,185 @@
+/* Rendered-Markdown styles, shared by the in-page viewer and the editor preview.
+   Everything is scoped to .md-body so the content script never restyles a host page. */
+
+.md-body {
+  --md-fg: #1f2328;
+  --md-muted: #59636e;
+  --md-bg: #ffffff;
+  --md-subtle: #f6f8fa;
+  --md-border: #d1d9e0;
+  --md-accent: #0969da;
+  --md-quote: #59636e;
+  color: var(--md-fg);
+  background: var(--md-bg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  word-wrap: break-word;
+}
+
+@media (prefers-color-scheme: dark) {
+  .md-body {
+    --md-fg: #e6edf3;
+    --md-muted: #9198a1;
+    --md-bg: #0d1117;
+    --md-subtle: #161b22;
+    --md-border: #30363d;
+    --md-accent: #4493f8;
+    --md-quote: #9198a1;
+  }
+}
+
+.md-body[data-theme="light"] {
+  --md-fg: #1f2328;
+  --md-muted: #59636e;
+  --md-bg: #ffffff;
+  --md-subtle: #f6f8fa;
+  --md-border: #d1d9e0;
+  --md-accent: #0969da;
+  --md-quote: #59636e;
+}
+
+.md-body[data-theme="dark"] {
+  --md-fg: #e6edf3;
+  --md-muted: #9198a1;
+  --md-bg: #0d1117;
+  --md-subtle: #161b22;
+  --md-border: #30363d;
+  --md-accent: #4493f8;
+  --md-quote: #9198a1;
+}
+
+.md-body > *:first-child { margin-top: 0; }
+.md-body > *:last-child { margin-bottom: 0; }
+
+.md-body h1,
+.md-body h2,
+.md-body h3,
+.md-body h4,
+.md-body h5,
+.md-body h6 {
+  margin: 1.6em 0 0.6em;
+  font-weight: 600;
+  line-height: 1.25;
+  scroll-margin-top: 1rem;
+}
+
+.md-body h1 { font-size: 2em; padding-bottom: 0.3em; border-bottom: 1px solid var(--md-border); }
+.md-body h2 { font-size: 1.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--md-border); }
+.md-body h3 { font-size: 1.25em; }
+.md-body h4 { font-size: 1em; }
+.md-body h5 { font-size: 0.875em; }
+.md-body h6 { font-size: 0.85em; color: var(--md-muted); }
+
+.md-body p,
+.md-body blockquote,
+.md-body ul,
+.md-body ol,
+.md-body pre,
+.md-body .md-table-wrap { margin: 0 0 1em; }
+
+.md-body a { color: var(--md-accent); text-decoration: none; }
+.md-body a:hover { text-decoration: underline; }
+
+.md-body strong { font-weight: 600; }
+.md-body del { color: var(--md-muted); }
+
+.md-body ul,
+.md-body ol { padding-left: 2em; }
+.md-body li + li { margin-top: 0.25em; }
+.md-body li > ul,
+.md-body li > ol { margin: 0.25em 0 0; }
+
+.md-body ul.md-tasklist { list-style: none; padding-left: 1.2em; }
+.md-body li.md-task input { margin-right: 0.45em; vertical-align: middle; }
+
+.md-body blockquote {
+  padding: 0 1em;
+  color: var(--md-quote);
+  border-left: 0.25em solid var(--md-border);
+}
+
+.md-body code {
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 85%;
+  background: var(--md-subtle);
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+.md-body pre.md-code {
+  position: relative;
+  padding: 1em;
+  overflow-x: auto;
+  background: var(--md-subtle);
+  border: 1px solid var(--md-border);
+  border-radius: 8px;
+  font-size: 85%;
+  line-height: 1.5;
+}
+
+.md-body pre.md-code > code {
+  padding: 0;
+  background: none;
+  font-size: 100%;
+  white-space: pre;
+}
+
+.md-body pre.md-code[data-lang]::before {
+  content: attr(data-lang);
+  position: absolute;
+  top: 0.35em;
+  right: 0.6em;
+  font-size: 0.75em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--md-muted);
+}
+
+.md-body .md-table-wrap { overflow-x: auto; }
+
+.md-body table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  width: max-content;
+  max-width: 100%;
+}
+
+.md-body th,
+.md-body td {
+  padding: 0.5em 0.85em;
+  border: 1px solid var(--md-border);
+}
+
+.md-body th { background: var(--md-subtle); font-weight: 600; }
+.md-body tbody tr:nth-child(2n) { background: var(--md-subtle); }
+
+.md-body hr {
+  height: 1px;
+  margin: 1.8em 0;
+  border: 0;
+  background: var(--md-border);
+}
+
+.md-body img { max-width: 100%; box-sizing: border-box; }
+
+.md-body details.md-frontmatter {
+  margin-bottom: 1.4em;
+  padding: 0.5em 0.9em;
+  background: var(--md-subtle);
+  border: 1px solid var(--md-border);
+  border-radius: 8px;
+  font-size: 0.9em;
+}
+
+.md-body details.md-frontmatter summary {
+  cursor: pointer;
+  color: var(--md-muted);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  font-size: 0.8em;
+}
+
+.md-body details.md-frontmatter pre { margin: 0.6em 0 0.2em; overflow-x: auto; }
+.md-body details.md-frontmatter code { background: none; padding: 0; }

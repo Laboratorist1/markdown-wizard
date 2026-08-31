@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Markdown Studio</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="head">
+    <span class="mark">M</span>
+    <div>
+      <h1>Markdown Studio</h1>
+      <p class="sub">Read and edit .md files</p>
+    </div>
+  </header>
+
+  <div class="actions">
+    <button type="button" id="open-editor" class="btn btn-primary">Open editor</button>
+    <button type="button" id="edit-page" class="btn" hidden>Edit this page's Markdown</button>
+  </div>
+
+  <p id="page-note" class="note" hidden></p>
+
+  <div id="file-access" class="warn" hidden>
+    <p>Rendering local <code>.md</code> files needs one extra permission: turn on
+      <strong>Allow access to file URLs</strong> for this extension.</p>
+    <button type="button" id="open-settings" class="btn btn-small">Open extension settings</button>
+  </div>
+
+  <footer class="foot">
+    <span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd> opens the editor</span>
+    <button type="button" id="open-shortcuts" class="link">Change shortcut</button>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>

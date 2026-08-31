@@ -1,0 +1,117 @@
+:root {
+  --bg: #ffffff;
+  --fg: #1f2328;
+  --muted: #59636e;
+  --border: #d1d9e0;
+  --accent: #0969da;
+  --accent-fg: #ffffff;
+  --warn-bg: #fff8c5;
+  --warn-fg: #7a5c00;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --fg: #e6edf3;
+    --muted: #9198a1;
+    --border: #30363d;
+    --accent: #4493f8;
+    --accent-fg: #06121f;
+    --warn-bg: #2b2412;
+    --warn-fg: #d29922;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+
+/* `hidden` must win over the display rules below. */
+[hidden] { display: none !important; }
+
+body {
+  width: 296px;
+  margin: 0;
+  padding: 14px;
+  background: var(--bg);
+  color: var(--fg);
+  font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+}
+
+.head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+
+.mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+h1 { margin: 0; font-size: 14px; }
+.sub { margin: 1px 0 0; color: var(--muted); font-size: 12px; }
+
+.actions { display: flex; flex-direction: column; gap: 8px; }
+
+.btn {
+  width: 100%;
+  padding: 8px 12px;
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.btn:hover { border-color: var(--accent); }
+.btn-primary { background: var(--accent); color: var(--accent-fg); border-color: transparent; }
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-small { width: auto; padding: 5px 10px; font-size: 12px; }
+
+.note { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
+
+.warn {
+  margin-top: 12px;
+  padding: 10px;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.warn p { margin: 0 0 8px; }
+.warn code { font-family: ui-monospace, Menlo, Consolas, monospace; }
+
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+kbd {
+  padding: 1px 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+
+.link {
+  padding: 0;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.link:hover { text-decoration: underline; }

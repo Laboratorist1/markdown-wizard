@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
+  <title>Markdown Studio</title>
+  <meta name="description" content="Read and edit Markdown on your phone. Every edit updates the same document.">
+  <meta name="theme-color" content="#0969da" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Markdown">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon180.png">
+  <link rel="icon" href="icons/icon192.png">
+  <link rel="stylesheet" href="lib/markdown.css">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- ------------------------------------------------------------ library -->
+<section id="screen-library" class="screen">
+  <header class="bar">
+    <h1 class="bar-title">Documents</h1>
+    <button type="button" id="btn-import" class="icon-button" aria-label="Import a file" title="Import">↧</button>
+    <button type="button" id="btn-new" class="icon-button primary" aria-label="New document" title="New">+</button>
+  </header>
+
+  <div class="search-row">
+    <input type="search" id="search" placeholder="Search documents" autocomplete="off"
+           autocapitalize="off" spellcheck="false" aria-label="Search documents">
+  </div>
+
+  <div id="doc-list" class="doc-list" role="list"></div>
+
+  <p id="library-empty" class="empty-state" hidden>
+    <strong>No documents yet.</strong>
+    Tap <span class="chip">+</span> to write one, or <span class="chip">↧</span> to bring in a
+    <code>.md</code> file from your phone. Everything is stored on this device.
+  </p>
+
+  <p class="storage-line" id="storage-line"></p>
+</section>
+
+<!-- ------------------------------------------------------------- editor -->
+<section id="screen-editor" class="screen" hidden>
+  <header class="bar">
+    <button type="button" id="btn-back" class="icon-button" aria-label="Back to documents">‹</button>
+    <div class="bar-doc">
+      <span id="editor-title" class="bar-title"></span>
+      <span id="save-state" class="save-state">Saved</span>
+    </div>
+    <button type="button" id="btn-view" class="icon-button" aria-label="Toggle preview" title="Preview">◨</button>
+    <button type="button" id="btn-more" class="icon-button" aria-label="Document actions">⋯</button>
+  </header>
+
+  <div id="conflict" class="conflict" hidden>
+    <span id="conflict-text"></span>
+    <button type="button" id="conflict-reload" class="text-button">Load newest</button>
+    <button type="button" id="conflict-keep" class="text-button">Keep mine</button>
+  </div>
+
+  <div class="editor-body">
+    <textarea id="editor" placeholder="Start writing…" autocomplete="off"
+              autocapitalize="sentences" spellcheck="true"></textarea>
+    <article id="preview" class="md-body" hidden></article>
+  </div>
+
+  <nav id="format-bar" class="format-bar" aria-label="Formatting">
+    <button type="button" data-cmd="heading" title="Heading">H</button>
+    <button type="button" data-cmd="bold" title="Bold"><b>B</b></button>
+    <button type="button" data-cmd="italic" title="Italic"><i>I</i></button>
+    <button type="button" data-cmd="link" title="Link">🔗</button>
+    <button type="button" data-cmd="ul" title="Bullet list">•</button>
+    <button type="button" data-cmd="task" title="Task">☑</button>
+    <button type="button" data-cmd="quote" title="Quote">❝</button>
+    <button type="button" data-cmd="code" title="Code">&lt;/&gt;</button>
+    <button type="button" data-cmd="codeblock" title="Code block">▤</button>
+    <button type="button" data-cmd="hr" title="Divider">―</button>
+  </nav>
+</section>
+
+<!-- ------------------------------------------------------------- sheets -->
+<div id="sheet" class="sheet-backdrop" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <h2 id="sheet-title" class="sheet-title"></h2>
+    <div id="sheet-body" class="sheet-body"></div>
+  </div>
+</div>
+
+<div id="prompt" class="sheet-backdrop" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="prompt-title">
+    <h2 id="prompt-title" class="sheet-title"></h2>
+    <p id="prompt-text" class="prompt-text"></p>
+    <input type="text" id="prompt-input" class="prompt-input" autocomplete="off" hidden>
+    <div id="prompt-actions" class="prompt-actions"></div>
+  </div>
+</div>
+
+<input type="file" id="file-input" accept=".md,.markdown,.mdown,.mkd,.mdx,.txt,text/markdown,text/plain"
+       multiple hidden>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="lib/markdown.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

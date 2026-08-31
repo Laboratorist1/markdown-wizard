@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Markdown Studio</title>
+  <link rel="stylesheet" href="../lib/markdown.css">
+  <link rel="stylesheet" href="editor.css">
+</head>
+<body data-view="split">
+  <header class="topbar">
+    <div class="brand" title="Markdown Studio">
+      <span class="brand-mark">M</span>
+      <span class="brand-name">Markdown Studio</span>
+    </div>
+
+    <div class="doc-title">
+      <span id="doc-name">Untitled.md</span>
+      <span id="doc-dirty" class="dirty-dot" title="Unsaved changes" hidden></span>
+      <span id="doc-path" class="doc-path"></span>
+    </div>
+
+    <div class="topbar-actions">
+      <div class="segmented" role="group" aria-label="View mode">
+        <button type="button" data-view="edit" title="Editor only (Ctrl+1)">Edit</button>
+        <button type="button" data-view="split" title="Split view (Ctrl+2)">Split</button>
+        <button type="button" data-view="preview" title="Preview only (Ctrl+3)">Preview</button>
+      </div>
+      <button type="button" id="btn-save" class="btn btn-primary" title="Save to disk (Ctrl+S)">Save</button>
+      <button type="button" id="btn-menu" class="btn btn-icon" title="More actions" aria-haspopup="true">⋯</button>
+      <div id="menu" class="menu" hidden>
+        <button type="button" data-action="save-as">Save as…</button>
+        <button type="button" data-action="new-file">New file</button>
+        <button type="button" data-action="quick-open">Go to file… <kbd>Ctrl+P</kbd></button>
+        <hr>
+        <button type="button" data-action="toggle-autosave">Autosave: <span id="autosave-state">off</span></button>
+        <button type="button" data-action="toggle-theme">Theme: <span id="theme-state">system</span></button>
+        <hr>
+        <button type="button" data-action="copy-html">Copy rendered HTML</button>
+        <button type="button" data-action="export-html">Export standalone HTML…</button>
+        <button type="button" data-action="shortcuts">Keyboard shortcuts</button>
+      </div>
+    </div>
+  </header>
+
+  <div id="banner" class="banner" hidden>
+    <span id="banner-text"></span>
+    <span class="banner-actions">
+      <button type="button" id="banner-primary" class="btn btn-small"></button>
+      <button type="button" id="banner-dismiss" class="btn btn-small btn-quiet">Dismiss</button>
+    </span>
+  </div>
+
+  <main class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-head">
+        <button type="button" id="btn-open-folder" class="btn btn-small" title="Open a folder of Markdown files">Open folder</button>
+        <button type="button" id="btn-open-file" class="btn btn-small" title="Open a single .md file">Open file</button>
+      </div>
+
+      <section class="panel">
+        <h2 class="panel-title">
+          <span id="workspace-name">Workspace</span>
+          <button type="button" id="btn-refresh" class="icon-btn" title="Rescan folder" hidden>⟳</button>
+        </h2>
+        <div id="file-tree" class="file-tree">
+          <p class="empty">Open a folder to browse its Markdown files, or open a single file to start editing.</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2 class="panel-title">Recent</h2>
+        <div id="recent-list" class="recent-list"></div>
+      </section>
+
+      <section class="panel panel-outline">
+        <h2 class="panel-title">Outline</h2>
+        <nav id="outline" class="outline"></nav>
+      </section>
+    </aside>
+
+    <div class="workarea">
+      <div class="format-toolbar" id="format-toolbar">
+        <button type="button" data-cmd="heading" title="Cycle heading level (Ctrl+H)">H</button>
+        <button type="button" data-cmd="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+        <button type="button" data-cmd="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+        <button type="button" data-cmd="strike" title="Strikethrough"><s>S</s></button>
+        <button type="button" data-cmd="code" title="Inline code (Ctrl+E)">&lt;/&gt;</button>
+        <span class="sep"></span>
+        <button type="button" data-cmd="link" title="Link (Ctrl+K)">🔗</button>
+        <button type="button" data-cmd="ul" title="Bulleted list">•</button>
+        <button type="button" data-cmd="ol" title="Numbered list">1.</button>
+        <button type="button" data-cmd="task" title="Task list">☑</button>
+        <button type="button" data-cmd="quote" title="Blockquote">❝</button>
+        <span class="sep"></span>
+        <button type="button" data-cmd="codeblock" title="Code block">▤</button>
+        <button type="button" data-cmd="table" title="Insert table">▦</button>
+        <button type="button" data-cmd="hr" title="Horizontal rule">―</button>
+      </div>
+
+      <div class="panes">
+        <div class="pane pane-editor">
+          <textarea id="editor" spellcheck="true" autocomplete="off" autocapitalize="off"
+            placeholder="# Start writing&#10;&#10;Open a file from the sidebar, or type here and press Ctrl+S to save it to disk."></textarea>
+        </div>
+        <div class="pane-divider" id="divider" role="separator" aria-orientation="vertical"></div>
+        <div class="pane pane-preview">
+          <article id="preview" class="md-body"></article>
+        </div>
+      </div>
+
+      <footer class="statusbar">
+        <span id="status-state" class="status-state">Ready</span>
+        <span class="sep-dot"></span>
+        <span id="status-cursor">Ln 1, Col 1</span>
+        <span class="sep-dot"></span>
+        <span id="status-counts">0 words</span>
+        <span class="grow"></span>
+        <span id="status-hint" class="status-hint">Ctrl+S save · Ctrl+P go to file</span>
+      </footer>
+    </div>
+  </main>
+
+  <div id="palette" class="palette" hidden>
+    <div class="palette-box">
+      <input type="text" id="palette-input" placeholder="Go to file…" autocomplete="off" spellcheck="false">
+      <div id="palette-results" class="palette-results"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="../lib/markdown.js"></script>
+  <script src="../lib/store.js"></script>
+  <script src="editor.js"></script>
+</body>
+</html>

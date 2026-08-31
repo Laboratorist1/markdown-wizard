@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "Markdown Studio",
+  "version": "1.0.0",
+  "description": "Read and edit .md files straight from disk: rendered preview, live editor, folder workspace, save back to the original file.",
+  "minimum_chrome_version": "116",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "Markdown Studio",
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "permissions": [
+    "storage",
+    "contextMenus",
+    "scripting",
+    "activeTab",
+    "unlimitedStorage"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "file:///*",
+        "*://*/*.md",
+        "*://*/*.markdown",
+        "*://*/*.mdown",
+        "*://*/*.mkd",
+        "*://*/*.mdx"
+      ],
+      "js": ["src/lib/markdown.js", "src/viewer/viewer.js"],
+      "css": ["src/lib/markdown.css", "src/viewer/viewer.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "commands": {
+    "open-editor": {
+      "suggested_key": { "default": "Ctrl+Shift+M", "mac": "Command+Shift+M" },
+      "description": "Open the Markdown editor"
+    }
+  }
+}
