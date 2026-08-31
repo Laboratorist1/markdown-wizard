@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the Markdown Studio icons.
+"""Generate the Markdown Wizard icons.
 
 Pillow is not a dependency of this repo, so the PNGs are rasterised by hand
 (4x supersampling) and encoded with zlib.

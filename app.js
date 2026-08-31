@@ -1,5 +1,5 @@
 /*
- * Markdown Studio (mobile).
+ * Markdown Wizard (mobile).
  *
  * One document = one record. A document's identity is a stable id, and its
  * bytes live in exactly one OPFS file (`docs/<id>.md`) for the life of that
@@ -10,7 +10,7 @@
 (function () {
   'use strict';
 
-  var DB_NAME = 'markdown-studio';
+  var DB_NAME = 'markdown-wizard';
   var DB_VERSION = 1;
   var STORE = 'docs';
   var DOC_DIR = 'docs';
@@ -185,11 +185,67 @@
     });
   }
 
+  var LEGACY_DB_NAME = 'markdown-studio';
+
+  /** The app was renamed, which moved the metadata database. Document bytes are
+      unaffected (they live in OPFS under docs/), so a rename only has to carry
+      the metadata rows across, once, into an empty library. */
+  function migrateLegacyLibrary() {
+    return Library.list().then(function (rows) {
+      if (rows.length) return null;
+      return openLegacyDb().then(function (db) {
+        if (!db) return null;
+        return readLegacyRows(db).then(function (legacy) {
+          db.close();
+          if (!legacy.length) return null;
+          return tx('readwrite', function (store) {
+            legacy.forEach(function (row) { store.put(row); });
+          }).then(function () {
+            toast('Restored ' + legacy.length +
+              (legacy.length === 1 ? ' document' : ' documents'));
+          });
+        });
+      });
+    }).catch(function () { /* a failed migration must not block startup */ });
+  }
+
+  function openLegacyDb() {
+    return new Promise(function (resolve) {
+      var request = indexedDB.open(LEGACY_DB_NAME);
+      request.onerror = function () { resolve(null); };
+      request.onsuccess = function () {
+        var db = request.result;
+        if (!db.objectStoreNames.contains(STORE)) {
+          // Opening created an empty database; drop it again rather than
+          // leaving litter behind.
+          db.close();
+          indexedDB.deleteDatabase(LEGACY_DB_NAME);
+          resolve(null);
+          return;
+        }
+        resolve(db);
+      };
+      request.onupgradeneeded = function () { /* legacy store is absent */ };
+    });
+  }
+
+  function readLegacyRows(db) {
+    return new Promise(function (resolve) {
+      try {
+        var request = db.transaction(STORE, 'readonly').objectStore(STORE).getAll();
+        request.onsuccess = function () { resolve(request.result || []); };
+        request.onerror = function () { resolve([]); };
+      } catch (error) {
+        resolve([]);
+      }
+    });
+  }
+
   /* =====================================================================
      Cross-tab coordination
      ===================================================================== */
 
-  var channel = ('BroadcastChannel' in self) ? new BroadcastChannel('markdown-studio') : null;
+  var channel = ('BroadcastChannel' in self) ? new BroadcastChannel('markdown-wizard') : null;
 
   function announce(message) {
     if (channel) channel.postMessage(message);
@@ -959,7 +1015,7 @@
   window.addEventListener('beforeinstallprompt', function (event) {
     event.preventDefault();
     installEvent = event;
-    showInstallHint('Install Markdown Studio', 'Add it to your home screen so it opens like an app.', function () {
+    showInstallHint('Install Markdown Wizard', 'Add it to your home screen so it opens like an app.', function () {
       installEvent.prompt();
       installEvent = null;
     });
@@ -1015,11 +1071,13 @@
     }
     // Ask the browser not to evict the library under storage pressure.
     if (navigator.storage.persist) navigator.storage.persist().catch(function () {});
-    route();
-    maybeIosHint();
+    migrateLegacyLibrary().then(function () {
+      route();
+      maybeIosHint();
+    });
   }
 
-  window.MarkdownStudioMobile = { Library: Library, saveNow: saveNow, route: route };
+  window.MarkdownWizardMobile = { Library: Library, saveNow: saveNow, route: route };
 
   start();
 })();

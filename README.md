@@ -1,4 +1,4 @@
-# Markdown Studio
+# Markdown Wizard
 
 Read and edit Markdown files — **on your phone** as an installable app, and **on
 the desktop** as a Chrome extension that edits files straight from disk.

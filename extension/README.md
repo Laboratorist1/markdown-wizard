@@ -1,4 +1,4 @@
-# Markdown Studio — the Chrome extension
+# Markdown Wizard — the Chrome extension
 
 Open a real file (or a whole folder) from disk, edit it, and save straight back
 to the original file. No server, no sync, no account — the files never leave

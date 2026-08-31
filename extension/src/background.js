@@ -32,7 +32,7 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
       id: 'open-editor',
-      title: 'Open Markdown Studio editor',
+      title: 'Open Markdown Wizard editor',
       contexts: ['action', 'page']
     });
     chrome.contextMenus.create({
@@ -43,7 +43,7 @@ chrome.runtime.onInstalled.addListener(() => {
     });
     chrome.contextMenus.create({
       id: 'edit-selection',
-      title: 'Open selection in Markdown Studio',
+      title: 'Open selection in Markdown Wizard',
       contexts: ['selection']
     });
   });
@@ -67,7 +67,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === 'edit-this-file' && tab && tab.id != null) {
     const [result] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      func: () => (window.__markdownStudioSource ?? document.body.innerText)
+      func: () => (window.__markdownWizardSource ?? document.body.innerText)
     });
     await openEditor({
       name: decodeURIComponent((tab.url || '').split('/').pop().split('?')[0]) || 'untitled.md',

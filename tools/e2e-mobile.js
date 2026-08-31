@@ -62,7 +62,7 @@ function serve(port, prefix) {
 const docCount = (page) => page.$$eval('.doc-item', (items) => items.length);
 const docTitles = (page) => page.$$eval('.doc-name', (names) => names.map((n) => n.textContent).sort());
 const docIds = (page) =>
-  page.evaluate(() => window.MarkdownStudioMobile.Library.list().then((rows) => rows.map((r) => r.id)));
+  page.evaluate(() => window.MarkdownWizardMobile.Library.list().then((rows) => rows.map((r) => r.id)));
 
 async function importFile(page, name, contents) {
   await page.setInputFiles('#file-input', {
@@ -94,7 +94,7 @@ async function main() {
   });
 
   await page.goto(BASE);
-  await page.waitForFunction(() => !!window.MarkdownStudioMobile);
+  await page.waitForFunction(() => !!window.MarkdownWizardMobile);
 
   /* ------------------------------------------------------- create + save */
 
@@ -120,7 +120,7 @@ async function main() {
   /* -------------------------------------------------------- reopen + edit */
 
   await page.reload();
-  await page.waitForFunction(() => !!window.MarkdownStudioMobile);
+  await page.waitForFunction(() => !!window.MarkdownWizardMobile);
   check('the document survives a reload', await docCount(page), 1);
 
   await page.click('.doc-open');
@@ -178,8 +178,8 @@ async function main() {
   await page.waitForFunction(() => document.getElementById('toast').textContent === 'Updated Packing');
   check('choosing "Update it" keeps the document count at two', await docCount(page), 2);
 
-  const packing = await page.evaluate(() => window.MarkdownStudioMobile.Library.findByTitle('Packing')
-    .then((meta) => window.MarkdownStudioMobile.Library.read(meta.id))
+  const packing = await page.evaluate(() => window.MarkdownWizardMobile.Library.findByTitle('Packing')
+    .then((meta) => window.MarkdownWizardMobile.Library.read(meta.id))
     .then((doc) => doc.text));
   check('choosing "Update it" replaced the contents in place',
     packing, '# Packing\n\n- socks\n- boots\n');
@@ -242,7 +242,7 @@ async function main() {
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null, { timeout: 10000 });
   await context.setOffline(true);
   await page.reload();
-  await page.waitForFunction(() => !!window.MarkdownStudioMobile);
+  await page.waitForFunction(() => !!window.MarkdownWizardMobile);
   check('the app opens with no network', await docCount(page), 3);
   check('documents are readable offline',
     await page.$$eval('.doc-name', (n) => n.length), 3);
@@ -260,7 +260,7 @@ async function main() {
   subPage.on('pageerror', (e) => subErrors.push('pageerror: ' + e.message));
 
   await subPage.goto(`http://localhost:${PORT + 1}/markdown-wizard/index.html`);
-  await subPage.waitForFunction(() => !!window.MarkdownStudioMobile);
+  await subPage.waitForFunction(() => !!window.MarkdownWizardMobile);
   await subPage.click('#btn-new');
   await subPage.fill('#prompt-input', 'Hosted');
   await subPage.click('.prompt-button.primary');
@@ -278,10 +278,74 @@ async function main() {
 
   await subContext.setOffline(true);
   await subPage.reload();
-  await subPage.waitForFunction(() => !!window.MarkdownStudioMobile);
+  await subPage.waitForFunction(() => !!window.MarkdownWizardMobile);
   check('a subpath deployment also opens offline', await docCount(subPage), 1);
   await subContext.setOffline(false);
   check('no page errors from the subpath deployment', subErrors, []);
+
+  /* --------------------------------------------- migration after rename */
+
+  // The app used to be called Markdown Studio, which named its metadata
+  // database. A library written by that version must survive the rename.
+  const legacyContext = await browser.newContext({ ...devices['Pixel 7'] });
+  const legacyPage = await legacyContext.newPage();
+  const legacyErrors = [];
+  legacyPage.on('pageerror', (e) => legacyErrors.push('pageerror: ' + e.message));
+
+  await legacyPage.goto(BASE);
+  await legacyPage.waitForFunction(() => !!window.MarkdownWizardMobile);
+
+  await legacyPage.evaluate(async () => {
+    // Write what the old version would have left behind: bytes in OPFS, and a
+    // metadata row in a database named after the old app.
+    const root = await navigator.storage.getDirectory();
+    const dir = await root.getDirectoryHandle('docs', { create: true });
+    const handle = await dir.getFileHandle('legacyid.md', { create: true });
+    const writable = await handle.createWritable();
+    await writable.write('# From the old version\n');
+    await writable.close();
+
+    // Drop the current metadata so the library looks empty, as it would after
+    // the rename, then plant the legacy database.
+    await new Promise((resolve) => {
+      const request = indexedDB.deleteDatabase('markdown-wizard');
+      request.onsuccess = request.onerror = request.onblocked = resolve;
+    });
+    await new Promise((resolve, reject) => {
+      const request = indexedDB.open('markdown-studio', 1);
+      request.onupgradeneeded = () => {
+        request.result.createObjectStore('docs', { keyPath: 'id' })
+          .createIndex('updatedAt', 'updatedAt');
+      };
+      request.onsuccess = () => {
+        const db = request.result;
+        const store = db.transaction('docs', 'readwrite').objectStore('docs');
+        store.put({
+          id: 'legacyid',
+          title: 'Old notes',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          size: 24,
+          preview: 'From the old version'
+        });
+        db.transaction('docs', 'readonly').oncomplete = () => {};
+        setTimeout(() => { db.close(); resolve(); }, 50);
+      };
+      request.onerror = () => reject(request.error);
+    });
+  });
+
+  await legacyPage.reload();
+  await legacyPage.waitForSelector('.doc-item');
+  check('a library from the old app name is carried over',
+    await docTitles(legacyPage), ['Old notes']);
+
+  await legacyPage.click('.doc-open');
+  await legacyPage.waitForSelector('#screen-editor:not([hidden])');
+  check('the migrated document still has its text',
+    await legacyPage.inputValue('#editor'), '# From the old version\n');
+  check('no page errors during migration', legacyErrors, []);
+  await legacyContext.close();
 
   check('no uncaught page errors', errors, []);
 

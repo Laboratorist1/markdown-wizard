@@ -47,7 +47,7 @@ async function init() {
   editPage.addEventListener('click', async () => {
     const [result] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      func: () => window.__markdownStudioSource ?? document.body.innerText
+      func: () => window.__markdownWizardSource ?? document.body.innerText
     });
     await chrome.runtime.sendMessage({
       type: 'open-editor',

@@ -20,7 +20,7 @@
 
   var source = document.body.querySelector('pre').textContent || '';
   // Read back by the service worker for the "Edit this Markdown file" menu.
-  window.__markdownStudioSource = source;
+  window.__markdownWizardSource = source;
 
   var fileName = decodeURIComponent(location.pathname.split('/').pop() || 'document.md');
   var rendered = MD.render(source);
@@ -84,7 +84,7 @@
     });
   });
 
-  var editBtn = button('Edit', 'Open this file in the Markdown Studio editor (e)', function () {
+  var editBtn = button('Edit', 'Open this file in the Markdown Wizard editor (e)', function () {
     chrome.runtime.sendMessage({
       type: 'open-editor',
       payload: { name: fileName, text: source, sourceUrl: location.href }

@@ -9,7 +9,7 @@
 (function (root) {
   'use strict';
 
-  var DB_NAME = 'markdown-studio';
+  var DB_NAME = 'markdown-wizard';
   var DB_VERSION = 1;
   var STORE = 'handles';
   var MAX_RECENT = 12;

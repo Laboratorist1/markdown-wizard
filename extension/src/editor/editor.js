@@ -1,5 +1,5 @@
 /*
- * Markdown Studio editor.
+ * Markdown Wizard editor.
  *
  * Reads and writes real files on disk through the File System Access API:
  * a picked file or folder yields a handle, the handle is kept in IndexedDB so
@@ -101,7 +101,7 @@
     if (dirty) setStatus('Unsaved changes', 'dirty');
     else if (state.handle) setStatus('Saved', null);
     else setStatus('Not saved to disk yet', null);
-    document.title = (dirty ? '* ' : '') + state.name + ' - Markdown Studio';
+    document.title = (dirty ? '* ' : '') + state.name + ' - Markdown Wizard';
   }
 
   function showBanner(text, actionLabel, onAction) {
@@ -1096,7 +1096,7 @@
   // Exposed for the repo's own end-to-end harness (tools/e2e.js). The editor
   // page loads no third-party code, so this is a test seam, not an entry point
   // for anyone else.
-  window.MarkdownStudio = {
+  window.MarkdownWizard = {
     state: state,
     loadDocument: loadDocument,
     openFileHandle: openFileHandle,

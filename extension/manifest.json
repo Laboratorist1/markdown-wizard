@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Markdown Studio",
+  "name": "Markdown Wizard",
   "version": "1.0.0",
   "description": "Read and edit .md files straight from disk: rendered preview, live editor, folder workspace, save back to the original file.",
   "minimum_chrome_version": "116",
@@ -11,7 +11,7 @@
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_title": "Markdown Studio",
+    "default_title": "Markdown Wizard",
     "default_popup": "src/popup/popup.html",
     "default_icon": {
       "16": "icons/icon16.png",

@@ -1,9 +1,9 @@
 ---
-title: Markdown Studio sample
+title: Markdown Wizard sample
 tags: [demo, markdown]
 ---
 
-# Markdown Studio
+# Markdown Wizard
 
 A sample file for trying the extension. Open it from the editor's **Open file**
 button, or browse to it with `file:///` once file access is enabled.

@@ -79,17 +79,17 @@ async function main() {
   const page = await ctx.newPage();
   watch(page, 'editor');
   await page.goto(`chrome-extension://${id}/src/editor/editor.html`);
-  await page.waitForFunction(() => !!window.MarkdownStudio);
+  await page.waitForFunction(() => !!window.MarkdownWizard);
 
   await page.fill('#editor', sample);
   await page.waitForTimeout(300);
 
-  check('preview renders the H1', await page.textContent('#preview h1'), 'Markdown Studio');
+  check('preview renders the H1', await page.textContent('#preview h1'), 'Markdown Wizard');
   check('table renders its cells', await page.$$eval('#preview td', (n) => n.length), 9);
   check('task list renders checkboxes', await page.$$eval('#preview input[type=checkbox]', (n) => n.length), 2);
   check('outline lists every heading',
     await page.$$eval('.outline-item', (n) => n.map((x) => x.textContent)),
-    ['Markdown Studio', 'What it covers', 'Code', 'Table']);
+    ['Markdown Wizard', 'What it covers', 'Code', 'Table']);
   check('raw HTML in the source is escaped',
     await page.evaluate(() => MD.render('<img src=x onerror=alert(1)>').html.includes('&lt;img')), true);
   check('javascript: links are dropped',
@@ -143,7 +143,7 @@ async function main() {
   const fsResult = await page.evaluate(async () => {
     // Start from a clean buffer: an unsaved one would raise the discard prompt,
     // which a headless run always dismisses.
-    window.MarkdownStudio.loadDocument('', { name: 'Untitled.md', path: '' });
+    window.MarkdownWizard.loadDocument('', { name: 'Untitled.md', path: '' });
 
     const root = await navigator.storage.getDirectory();
     for await (const name of root.keys()) {
@@ -165,28 +165,28 @@ async function main() {
     const skipped = await root.getDirectoryHandle('node_modules', { create: true });
     await write(skipped, 'dep.md', '# Should not be listed\n');
 
-    await window.MarkdownStudio.useWorkspace(root);
-    const listed = window.MarkdownStudio.state.files.map((f) => f.path).sort();
+    await window.MarkdownWizard.useWorkspace(root);
+    const listed = window.MarkdownWizard.state.files.map((f) => f.path).sort();
 
-    await window.MarkdownStudio.openFileHandle(readme, { path: 'readme.md' });
+    await window.MarkdownWizard.openFileHandle(readme, { path: 'readme.md' });
     const opened = document.getElementById('editor').value;
-    const cleanOnOpen = !window.MarkdownStudio.isDirty();
+    const cleanOnOpen = !window.MarkdownWizard.isDirty();
 
     const editor = document.getElementById('editor');
     editor.value = '# Readme\n\nedited body\n';
     editor.dispatchEvent(new Event('input', { bubbles: true }));
-    const dirtyAfterEdit = window.MarkdownStudio.isDirty();
+    const dirtyAfterEdit = window.MarkdownWizard.isDirty();
 
-    await window.MarkdownStudio.saveDocument();
+    await window.MarkdownWizard.saveDocument();
     const onDisk = await (await readme.getFile()).text();
-    const cleanAfterSave = !window.MarkdownStudio.isDirty();
+    const cleanAfterSave = !window.MarkdownWizard.isDirty();
 
     // Someone else changes the file while the buffer is clean.
     const writable = await readme.createWritable();
     await writable.write('# Readme\n\nchanged elsewhere\n');
     await writable.close();
-    window.MarkdownStudio.state.lastModified = 1;
-    await window.MarkdownStudio.checkExternalChange();
+    window.MarkdownWizard.state.lastModified = 1;
+    await window.MarkdownWizard.checkExternalChange();
     await new Promise((r) => setTimeout(r, 250));
 
     return {
@@ -228,7 +228,7 @@ async function main() {
   watch(viewer, 'viewer');
   await viewer.goto(`http://localhost:${PORT}/sample.md`);
   await viewer.waitForSelector('.mds-shell', { timeout: 5000 });
-  check('viewer renders the document', await viewer.textContent('.mds-article h1'), 'Markdown Studio');
+  check('viewer renders the document', await viewer.textContent('.mds-article h1'), 'Markdown Wizard');
   check('viewer builds an outline', await viewer.$$eval('.mds-outline-link', (n) => n.length), 4);
   await viewer.click('button.mds-btn:has-text("Source")');
   check('viewer toggles to raw source', await viewer.isVisible('.mds-source'), true);
@@ -245,7 +245,7 @@ async function main() {
   watch(popup, 'popup');
   await popup.goto(`chrome-extension://${id}/src/popup/popup.html`);
   await popup.waitForTimeout(300);
-  check('popup renders', await popup.textContent('h1'), 'Markdown Studio');
+  check('popup renders', await popup.textContent('h1'), 'Markdown Wizard');
 
   check('no uncaught page errors', errors, []);
 
