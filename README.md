@@ -40,7 +40,10 @@ That is the whole install; nothing else runs anywhere.
 - **+** new document · **↧** import `.md`, `.json` or `.xml` files from Files,
   Drive or Downloads
 - Autosaves about a second after you stop typing, and when you background the app
-- **◨** rendered preview · **⋯** rename, share, copy, duplicate, info, delete
+- Opening a document leads with its **formatted view** — rendered prose, a
+  book's contents, a list of records — and **◨** switches to the text. A
+  document you have just created opens in the text, ready to type into
+- **⋯** rename, share, copy, duplicate, info, delete
 - `Enter` continues lists and task lists; the format bar sits above the keyboard
 
 ### Three kinds of document

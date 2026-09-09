@@ -17,7 +17,7 @@
   var AUTOSAVE_MS = 700;
   // Shown in the library footer so it is possible to tell which build is
   // actually running after an update; keep in step with the cache in sw.js.
-  var BUILD = 'build 9';
+  var BUILD = 'build 10';
   var PREVIEW_CHARS = 160;
 
   /* =====================================================================
@@ -526,6 +526,7 @@
         : '# ' + title + '\n\n';
       return Library.create(title, seed, kind).then(function (meta) {
         announce({ type: 'library' });
+        openForWriting = meta.id;
         location.hash = '#/d/' + meta.id;
       });
     });
@@ -794,6 +795,8 @@
 
   var current = null;      // { id, title, savedText, lastModified }
   var showingPreview = false;
+  // Set when a document is created, so making one lands in the editor.
+  var openForWriting = null;
 
   function openDocument(id) {
     return Library.read(id).then(function (doc) {
@@ -815,7 +818,10 @@
       rich = { text: null, kind: null, widget: null, label: '', mode: 'rich', root: null };
       applyKind(current.kind);
       hideConflict();
-      setPreview(false);
+      // A document is opened to be read: the formatted view leads, and the
+      // text is one tap away. A new or empty one is opened to be written.
+      setPreview(doc.text.trim().length > 0 && openForWriting !== doc.meta.id);
+      openForWriting = null;
       setSaveState('saved');
       renderPreview();
     });

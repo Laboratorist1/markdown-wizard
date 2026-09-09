@@ -76,7 +76,15 @@ async function importFile(page, name, contents) {
   });
 }
 
+/** Opens a document and leaves it showing its text. Documents now open in the
+    formatted view, so this switches once. */
 async function openDoc(page, name) {
+  await openDocFormatted(page, name);
+  if (await page.isHidden('#editor')) await page.click('#btn-view');
+  await page.waitForSelector('#editor:not([hidden])');
+}
+
+async function openDocFormatted(page, name) {
   await page.click(`.doc-item:has-text("${name}") .doc-open`);
   await page.waitForSelector('#screen-editor:not([hidden])');
   await page.waitForFunction(
@@ -124,6 +132,9 @@ async function main() {
   await page.click('.prompt-button.primary');
   await page.waitForSelector('#screen-editor:not([hidden])');
   check('new document opens in the editor', await page.textContent('#editor-title'), 'Trip notes');
+  // Creating a document is an intent to write, so this one lands in the text.
+  check('a document you just made is ready to type into',
+    await page.isVisible('#editor'), true);
 
   await page.click('#editor');
   await page.keyboard.type('Ferry leaves at six.');
@@ -140,6 +151,15 @@ async function main() {
   await page.reload();
   await page.waitForFunction(() => !!window.MarkdownWizardMobile);
   check('the document survives a reload', await docCount(page), 1);
+
+  // Opening an existing document leads with the formatted view.
+  await openDocFormatted(page, 'Trip notes');
+  check('an existing document opens formatted', await page.isVisible('#preview'), true);
+  check('and not as raw text', await page.isHidden('#editor'), true);
+  check('the rendering is there to read', await page.$$eval('#preview h1', (n) => n.length), 1);
+  await page.click('#btn-view');
+  check('one tap gets to the text', await page.isVisible('#editor'), true);
+  await page.click('#btn-back');
 
   await openDoc(page, 'Trip notes');
   var SEED = '# Trip notes\n\n';
@@ -444,9 +464,10 @@ async function main() {
 
   await importFile(page, 'Current Books.json', library);
   await page.waitForFunction(() => document.querySelectorAll('.doc-item').length === 7);
-  await openDoc(page, 'Current Books');
-  await page.click('#btn-view');
+  await openDocFormatted(page, 'Current Books');
   await page.waitForSelector('#data-view:not([hidden])');
+  check('a JSON document opens straight into its records',
+    await page.isVisible('.rc-list'), true);
 
   check('a JSON list of records opens as records, not a tree',
     await page.$$eval('.rc-card', (n) => n.length), 3);
@@ -659,9 +680,10 @@ async function main() {
 
   await importFile(page, 'A Sample Open Textbook.xml', bookXml);
   await page.waitForFunction(() => document.querySelectorAll('.doc-item').length === 8);
-  await openDoc(page, 'A Sample Open Textbook');
-  await page.click('#btn-view');
+  await openDocFormatted(page, 'A Sample Open Textbook');
   await page.waitForSelector('#data-view:not([hidden])');
+  check('a book opens straight at its contents',
+    await page.isVisible('.bk-toc'), true);
 
   check('a book opens at its contents, not a tree',
     await page.$$eval('.bk-entry', (n) => n.length), 5);
