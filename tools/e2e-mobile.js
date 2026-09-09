@@ -91,7 +91,10 @@ async function main() {
 
   const server = await serve(PORT, '');
   const browser = await chromium.launch({ channel: 'chromium', headless: true });
-  const context = await browser.newContext({ ...devices['Pixel 7'] });
+  const context = await browser.newContext({
+    ...devices['Pixel 7'],
+    permissions: ['clipboard-read', 'clipboard-write']
+  });
   const page = await context.newPage();
 
   const errors = [];
@@ -540,6 +543,23 @@ async function main() {
 
   await page.click('.bk-back');
   check('Contents returns to the index', await page.isVisible('.bk-toc'), true);
+
+  // The report exists so that a picture that will not appear can be diagnosed
+  // from the phone, without a debugger.
+  await page.click('#btn-more');
+  await page.click('.sheet-item:has-text("Copy image report")');
+  await page.waitForFunction(() =>
+    document.getElementById('toast').textContent === 'Image report copied');
+  const report = await page.evaluate(() => navigator.clipboard.readText());
+  check('the image report names the base URL',
+    report.indexOf('base url: https://example.edu/sample') !== -1, true);
+  check('the image report counts the catalogued images',
+    report.indexOf('catalogued images: 1') !== -1, true);
+  check('the image report shows each image as written',
+    report.indexOf('as written: <img src="Figure_1.png"') !== -1, true);
+  check('the image report shows what each became',
+    report.indexOf('resolved to: https://example.edu/app/uploads/sites/28/2017/03/Figure_1.png') !== -1,
+    true);
 
   await page.click('[data-data-cmd="mode"]');
   check('the raw tree is still one tap away',

@@ -15,6 +15,9 @@
   var STORE = 'docs';
   var DOC_DIR = 'docs';
   var AUTOSAVE_MS = 700;
+  // Shown in the library footer so it is possible to tell which build is
+  // actually running after an update; keep in step with the cache in sw.js.
+  var BUILD = 'build 6';
   var PREVIEW_CHARS = 160;
 
   /* =====================================================================
@@ -498,9 +501,9 @@
   function updateStorageLine(rows) {
     var count = rows.length;
     var bytes = rows.reduce(function (total, row) { return total + (row.size || 0); }, 0);
-    dom.storageLine.textContent = count
+    dom.storageLine.textContent = (count
       ? count + (count === 1 ? ' document' : ' documents') + ' · ' + formatBytes(bytes) + ' on this device'
-      : '';
+      : 'No documents yet') + ' · ' + BUILD;
   }
 
   dom.search.addEventListener('input', paintLibrary);
@@ -653,6 +656,11 @@
         onClick: function () { showInfo(meta); }
       },
       {
+        label: 'Copy image report',
+        detail: 'What this app sees for each picture, for troubleshooting.',
+        onClick: function () { copyImageReport(meta); }
+      },
+      {
         label: 'Delete',
         danger: true,
         onClick: function () {
@@ -678,6 +686,58 @@
         }
       }
     ]);
+  }
+
+  /** When a picture will not appear, the useful facts are what the file asked
+      for and what that was turned into. This puts both on the clipboard. */
+  function copyImageReport(meta) {
+    Library.read(meta.id).then(function (doc) {
+      var lines = [BUILD, 'document: ' + meta.title, 'kind: ' + (meta.kind || 'unknown')];
+
+      var parsed = Structured.parseXml(doc.text);
+      var model = parsed.error ? null : Book.parse(parsed.doc);
+      if (!model) {
+        lines.push('not read as a book' + (parsed.error ? ' (' + parsed.error + ')' : ''));
+      } else {
+        var catalogued = Object.keys(model.images || {});
+        lines.push('book: ' + model.title);
+        lines.push('base url: ' + (model.baseUrl || '(none found)'));
+        lines.push('catalogued images: ' + catalogued.length);
+        catalogued.slice(0, 3).forEach(function (key) {
+          lines.push('  ' + key + ' -> ' + model.images[key]);
+        });
+
+        var withImages = model.reading.filter(function (entry) { return /<img/i.test(entry.html); });
+        lines.push('sections with images: ' + withImages.length + ' of ' + model.reading.length);
+
+        var entry = withImages[0];
+        if (entry) {
+          lines.push('');
+          lines.push('first section with images: ' + entry.title);
+          lines.push('section url: ' + (entry.url || '(none)'));
+          (entry.html.match(/<img[^>]*>/gi) || []).slice(0, 4).forEach(function (tag) {
+            lines.push('  as written: ' + tag.slice(0, 240));
+          });
+          var host = document.createElement('div');
+          host.appendChild(Book.sanitize(entry.html, entry.url || model.baseUrl, model.images));
+          Array.prototype.slice.call(host.querySelectorAll('img'), 0, 4).forEach(function (image) {
+            lines.push('  resolved to: ' + image.getAttribute('src'));
+          });
+        }
+      }
+
+      var report = lines.join('\n');
+      return navigator.clipboard.writeText(report).then(function () {
+        toast('Image report copied');
+      }).catch(function () {
+        // Clipboard access can be refused; show it so it can still be read.
+        openSheet('Image report', report.split('\n').map(function (line) {
+          return { label: line || ' ' };
+        }));
+      });
+    }).catch(function (error) {
+      toast('Could not build the report: ' + error.message, true);
+    });
   }
 
   function showInfo(meta) {
