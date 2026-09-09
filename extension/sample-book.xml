@@ -53,6 +53,9 @@
 <img src="https://example.edu/img/link.png" alt="A chain link">
 <p><img src="/wp-content/uploads/2017/03/root-relative.png" alt="Root relative"></p>
 <p><img src="images/chapter-relative.png" alt="Chapter relative"></p>
+<p><img src="Figure_1.png" alt="Figure_1.png"></p>
+<p><img src="Figure_1-300x200.png" alt="A generated size"></p>
+<p><img src="https://upload.wikimedia.org/outside.png" alt="Borrowed from elsewhere"></p>
 <p><img src="http://example.edu/img/insecure.png" alt="Served over http"></p>
 <table><tr><th>Kind</th><td>Hyper</td></tr></table>]]></content:encoded>
     <wp:post_id>21</wp:post_id>
@@ -97,11 +100,13 @@
     <wp:post_parent>30</wp:post_parent>
   </item>
   <item>
-    <title>An Uploaded Image</title>
+    <title>Figure_1</title>
+    <link>https://example.edu/sample/chapter/what-is-a-link/figure_1/</link>
     <content:encoded><![CDATA[]]></content:encoded>
     <wp:post_id>40</wp:post_id>
     <wp:post_type>attachment</wp:post_type>
     <wp:status>inherit</wp:status>
+    <wp:attachment_url>https://example.edu/app/uploads/sites/28/2017/03/Figure_1.png</wp:attachment_url>
   </item>
   <item>
     <title>Bibliography</title>

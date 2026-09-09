@@ -451,9 +451,10 @@ async function main() {
     const model = Book.parse(Structured.parseXml(xml).doc);
     const chapter = model.reading.find((e) => e.title === 'What Is a Link?');
     const host = document.createElement('div');
-    host.appendChild(Book.sanitize(chapter.html, model.baseUrl));
+    host.appendChild(Book.sanitize(chapter.html, model.baseUrl, model.images));
     return {
       base: model.baseUrl,
+      catalogue: model.images,
       images: Array.from(host.querySelectorAll('img')).map((i) => i.getAttribute('src')),
       // The same content with no base URL to resolve against.
       unbased: (() => {
@@ -470,8 +471,15 @@ async function main() {
       'https://example.edu/img/link.png',
       'https://example.edu/wp-content/uploads/2017/03/root-relative.png',
       'https://example.edu/sample/images/chapter-relative.png',
+      // Cited by bare name; found in the export's own list of media.
+      'https://example.edu/app/uploads/sites/28/2017/03/Figure_1.png',
+      // A generated size names the same file.
+      'https://example.edu/app/uploads/sites/28/2017/03/Figure_1.png',
+      // Borrowed from another site, so left exactly as written.
+      'https://upload.wikimedia.org/outside.png',
       'http://example.edu/img/insecure.png'
     ]);
+  check('the export\'s media list is read', Object.keys(urls.catalogue), ['figure_1.png']);
   check('without a base URL an image still resolves against the page',
     urls.unbased.endsWith('/a/b.png'), true);
 
@@ -510,6 +518,9 @@ async function main() {
       'https://example.edu/img/link.png',
       'https://example.edu/wp-content/uploads/2017/03/root-relative.png',
       'https://example.edu/sample/chapter/what-is-a-link/images/chapter-relative.png',
+      'https://example.edu/app/uploads/sites/28/2017/03/Figure_1.png',
+      'https://example.edu/app/uploads/sites/28/2017/03/Figure_1.png',
+      'https://upload.wikimedia.org/outside.png',
       'http://example.edu/img/insecure.png'
     ]);
   // Failing is asynchronous: the fetch has to be attempted first.

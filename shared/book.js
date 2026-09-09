@@ -69,6 +69,15 @@
     return words;
   }
 
+  /** "…/2017/03/Figure_1-300x200.png" and "Figure_1.png" name the same image;
+      WordPress appends the size of each generated copy. */
+  function imageKey(url) {
+    var path = String(url || '').split(/[?#]/)[0];
+    var name = path.slice(path.lastIndexOf('/') + 1);
+    if (!name) return '';
+    return name.replace(/-\d{2,5}x\d{2,5}(?=\.[a-z0-9]+$)/i, '').toLowerCase();
+  }
+
   function isBookish(doc) {
     if (!doc || !doc.documentElement) return false;
     var name = (doc.documentElement.localName || doc.documentElement.nodeName).toLowerCase();
@@ -99,6 +108,7 @@
     var author = '';
     var entries = [];
     var parts = [];
+    var images = {};
     var isExport = false;
 
     items.forEach(function (item, index) {
@@ -110,6 +120,19 @@
         author = author || textOf(item, 'dc:creator');
         return;
       }
+
+      // An export lists its media, each with the address it really lives at.
+      // Chapters often refer to those files by name alone, so this is the only
+      // reliable way to find them.
+      if (type && type.toLowerCase() === 'attachment') {
+        var attachmentUrl = textOf(item, 'wp:attachment_url');
+        if (attachmentUrl) {
+          var key = imageKey(attachmentUrl);
+          if (key) images[key] = attachmentUrl;
+        }
+        return;
+      }
+
       if (type && SKIP_TYPES.test(type)) return;
       if (status && /^(trash|auto-draft|inherit)$/i.test(status)) return;
 
@@ -136,6 +159,7 @@
       description: description,
       author: author,
       baseUrl: baseUrl,
+      images: images,
       entries: entries,
       parts: parts,
       structured: isExport
@@ -226,6 +250,7 @@
       description: input.description || '',
       author: input.author || '',
       baseUrl: input.baseUrl || '',
+      images: input.images || {},
       sections: sections,
       reading: reading
     };
@@ -262,6 +287,13 @@
       return /^(mailto|tel):/i.test(url) ? url : '';
     }
 
+    // A chapter referring to one of the book's own images by name is asking
+    // for the file the export catalogued, wherever that turns out to live.
+    if (settings.catalogue) {
+      var known = settings.catalogue[imageKey(url)];
+      if (known && !isForeignHost(url, settings.base)) url = known;
+    }
+
     // A chapter's URLs are relative to the site the book came from, not to
     // wherever this app happens to be served.
     var absolute = url;
@@ -277,6 +309,17 @@
       absolute = 'https://' + absolute.slice('http://'.length);
     }
     return absolute;
+  }
+
+  /** True for an absolute URL pointing somewhere other than the book's site -
+      an image borrowed from Wikimedia, say, which the export does not own. */
+  function isForeignHost(url, base) {
+    if (!/^https?:\/\//i.test(url) || !base) return false;
+    try {
+      return new URL(url).host !== new URL(base).host;
+    } catch (error) {
+      return false;
+    }
   }
 
   /** "https://example.edu/book" names a place, not a file, so relative URLs
@@ -296,12 +339,13 @@
   }
 
   /** Rebuilds foreign HTML as nodes we constructed ourselves. */
-  function sanitize(html, baseUrl) {
+  function sanitize(html, baseUrl, images) {
     var fragment = document.createDocumentFragment();
     if (!html) return fragment;
 
     var settings = {
       base: normalizeBase(baseUrl),
+      images: images || null,
       secure: typeof location !== 'undefined' && location.protocol === 'https:'
     };
     var parsed = new DOMParser().parseFromString(String(html), 'text/html');
@@ -336,7 +380,8 @@
           value = safeUrl(value, {
             base: settings.base,
             secure: settings.secure,
-            image: name === 'src'
+            image: name === 'src',
+            catalogue: name === 'src' ? settings.images : null
           });
           if (!value) return;
         }
@@ -517,7 +562,7 @@
       pageMeta.textContent = meta;
       pageMeta.hidden = !meta;
 
-      body.replaceChildren(sanitize(entry.html, entry.url || model.baseUrl));
+      body.replaceChildren(sanitize(entry.html, entry.url || model.baseUrl, model.images));
       if (!body.childNodes.length) {
         body.appendChild(el('p', 'bk-empty', 'This section has no text of its own.'));
       }

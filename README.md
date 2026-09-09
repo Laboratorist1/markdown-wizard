@@ -75,11 +75,14 @@ rebuilt node by node against an allowlist: scripts, frames, embedded objects,
 event handlers and `javascript:` URLs never survive, and anything unrecognised
 is unwrapped so its words are kept. There are tests that assert exactly that.
 
-**Images.** Chapter images are written relative to the site the book was
-exported from, so they are resolved against that address — the export declares
-it in `wp:base_blog_url`, and a chapter's own `<link>` is used where it has one.
-`http://` image URLs are lifted to `https://`, since a page served over https
-silently refuses them otherwise. An image that still cannot be fetched — you are
+**Images.** An export catalogues its own media: every picture has an
+`attachment` record naming the address it really lives at. Chapters, meanwhile,
+often cite images by bare filename. So a chapter's images are looked up in that
+catalogue first — by name, ignoring the `-300x200` suffix WordPress adds to
+generated sizes — and only then resolved as a URL, against the book's own
+address (`wp:base_blog_url`, or the chapter's own `<link>`). An image borrowed
+from another site is left exactly as written. `http://` image URLs are lifted to
+`https://`, since a page served over https silently refuses them otherwise. An image that still cannot be fetched — you are
 offline, or the site has moved — becomes a small note naming it, which you can
 tap to open the image directly.
 
