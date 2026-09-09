@@ -17,7 +17,7 @@
   var AUTOSAVE_MS = 700;
   // Shown in the library footer so it is possible to tell which build is
   // actually running after an update; keep in step with the cache in sw.js.
-  var BUILD = 'build 6';
+  var BUILD = 'build 7';
   var PREVIEW_CHARS = 160;
 
   /* =====================================================================

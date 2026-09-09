@@ -43,7 +43,11 @@ function serve(port, prefix) {
   const server = http.createServer((req, res) => {
     let urlPath = decodeURIComponent(req.url.split('?')[0]);
     if (base && urlPath.startsWith(base)) urlPath = urlPath.slice(base.length);
-    const rel = urlPath.replace(/^\/+/, '') || 'index.html';
+    let rel = urlPath.replace(/^\/+/, '') || 'index.html';
+    // Stand in for a re-platformed site: files are served from /app/uploads/…
+    // and the old /<subsite>/wp-content/uploads/… path is gone.
+    if (rel.startsWith('app/uploads/')) rel = rel.slice('app/uploads/'.length);
+    else if (rel.indexOf('wp-content/uploads/') !== -1) { res.writeHead(404); res.end('moved'); return; }
     const file = path.join(ROOT, rel);
     if (!file.startsWith(ROOT)) { res.writeHead(403); res.end(); return; }
     fs.readFile(file, (err, data) => {
@@ -530,10 +534,12 @@ async function main() {
   await page.waitForFunction(
     () => document.querySelectorAll('a.bk-image-missing').length > 0, null, { timeout: 10000 });
   // Which one fails first is not ours to decide, so check the set, not an order.
+  // Every chip links to the address the file asked for - whichever host that
+  // was - not to something this app invented.
   check('a missing image becomes a note you can tap to open',
     await page.$$eval('a.bk-image-missing', (n) => n
       .map((a) => a.getAttribute('href'))
-      .every((href) => href.indexOf('example.edu') !== -1)), true);
+      .every((href) => /^https?:\/\/(example\.edu|upload\.wikimedia\.org)\//.test(href))), true);
   check('where you are in the book is shown', await page.textContent('.bk-where'), '2 of 5');
 
   await page.click('.bk-next');
@@ -551,6 +557,41 @@ async function main() {
   await page.waitForFunction(() =>
     document.getElementById('toast').textContent === 'Image report copied');
   const report = await page.evaluate(() => navigator.clipboard.readText());
+  const candidates = await page.evaluate(() => Book.imageCandidates(
+    'https://example.edu/thebook/wp-content/uploads/sites/10/2016/12/Figure_1_fmt.png'));
+  check('a moved upload is looked for where a re-platformed site keeps it', candidates, [
+    'https://example.edu/app/uploads/sites/10/2016/12/Figure_1_fmt.png',
+    'https://example.edu/wp-content/uploads/sites/10/2016/12/Figure_1_fmt.png'
+  ]);
+  check('an address with no uploads path has nowhere else to look',
+    await page.evaluate(() => Book.imageCandidates('https://example.edu/img/plain.png')), []);
+
+  // End to end: a chapter citing the old path must end up showing the file
+  // from the new one.
+  const recovered = await page.evaluate(async (origin) => {
+    const html = '<p><img src="' + origin +
+      '/themissinglink/wp-content/uploads/icons/icon192.png" alt="Figure 1"></p>';
+    const host = document.createElement('div');
+    host.appendChild(Book.sanitize(html, origin));
+    document.body.appendChild(host);
+    const image = host.querySelector('img');
+    await new Promise((resolve) => {
+      const done = () => resolve();
+      image.addEventListener('load', done);
+      setTimeout(done, 4000);
+    });
+    const result = {
+      src: host.querySelector('img') ? host.querySelector('img').getAttribute('src') : null,
+      loaded: host.querySelector('img') ? host.querySelector('img').naturalWidth > 0 : false
+    };
+    host.remove();
+    return result;
+  }, BASE.replace('/index.html', ''));
+
+  check('an image at a moved path is recovered', recovered.src,
+    BASE.replace('/index.html', '') + '/app/uploads/icons/icon192.png');
+  check('and it actually loads', recovered.loaded, true);
+
   check('the image report names the base URL',
     report.indexOf('base url: https://example.edu/sample') !== -1, true);
   check('the image report counts the catalogued images',

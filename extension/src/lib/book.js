@@ -311,6 +311,31 @@
     return absolute;
   }
 
+  /** Where else the same upload might live now.
+
+      A site that has been re-platformed keeps its files but moves the path: an
+      export from 2017 points at /<subsite>/wp-content/uploads/..., while the
+      site today serves /app/uploads/... So when an image 404s, the same file is
+      worth looking for at the addresses the common WordPress layouts use. */
+  function imageCandidates(src) {
+    var marker = '/wp-content/uploads/';
+    var candidates = [];
+    try {
+      var url = new URL(src);
+      var at = url.pathname.indexOf(marker);
+      if (at === -1) return candidates;
+      var tail = url.pathname.slice(at + marker.length) + url.search;
+
+      // Bedrock, which Pressbooks moved to: uploads at /app/uploads.
+      candidates.push(url.origin + '/app/uploads/' + tail);
+      // Plain multisite: uploads at the network root rather than under the site.
+      if (at > 0) candidates.push(url.origin + marker + tail);
+    } catch (error) {
+      return [];
+    }
+    return candidates;
+  }
+
   /** True for an absolute URL pointing somewhere other than the book's site -
       an image borrowed from Wikimedia, say, which the export does not own. */
   function isForeignHost(url, base) {
@@ -400,12 +425,25 @@
       if (tag === 'IMG') {
         clean.setAttribute('loading', 'lazy');
         if (!clean.hasAttribute('src')) continue;
+        var attempts = imageCandidates(clean.getAttribute('src'));
+        var attempted = 0;
+        var asWritten = clean.getAttribute('src');
+
         clean.addEventListener('error', function (event) {
+          var broken = event.target;
+
+          // Before giving up, look for the same file where a re-platformed
+          // site would keep it.
+          if (attempted < attempts.length) {
+            broken.setAttribute('src', attempts[attempted]);
+            attempted += 1;
+            return;
+          }
+
           // A chapter's images live on the site the book came from, so one can
           // fail because you are offline, because it moved, or because the site
           // is gone. Say which image, and let it be opened directly.
-          var broken = event.target;
-          var source = broken.getAttribute('src') || '';
+          var source = asWritten || '';
           var note = document.createElement(source ? 'a' : 'span');
           note.className = 'bk-image-missing';
           note.textContent = broken.getAttribute('alt') || 'image';
@@ -595,6 +633,7 @@
     parse: parse,
     create: create,
     sanitize: sanitize,
-    isBookish: isBookish
+    isBookish: isBookish,
+    imageCandidates: imageCandidates
   };
 })(typeof self !== 'undefined' ? self : this);
