@@ -1,0 +1,8 @@
+{
+  "people": [
+    { "id": 1, "name": "Ada Lovelace", "field": "computing", "born": 1815, "notes": null },
+    { "id": 2, "name": "Alan Turing", "field": "computing", "born": 1912, "notes": "Enigma" },
+    { "id": 3, "name": "Grace Hopper", "field": "compilers", "born": 1906, "notes": null },
+    { "id": 4, "name": "Katherine Johnson", "field": "orbital mechanics", "born": 1918, "notes": "Apollo" }
+  ]
+}

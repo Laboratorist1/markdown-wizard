@@ -135,7 +135,7 @@
       renderOutline(result.headings);
     } else {
       var data = Structured.render(state.kind, dom.editor.value);
-      var reader = state.kind === 'xml' && !data.error ? bookFor(dom.editor.value) : null;
+      var reader = !data.error ? richFor(dom.editor.value, state.kind) : null;
       dom.preview.className = 'st-host';
       dom.preview.replaceChildren(reader && state.bookMode ? reader.node : data.node);
       renderDataPanel(data, reader);
@@ -147,14 +147,35 @@
      reader around so switching views does not lose your place. */
   var openBook = { text: null, reader: null };
 
-  function bookFor(text) {
-    if (openBook.text === text) return openBook.reader;
+  function richFor(text, kind) {
+    if (openBook.text === text && openBook.kind === kind) return openBook.reader;
     openBook.text = text;
+    openBook.kind = kind;
     openBook.reader = null;
-    var parsed = Structured.parseXml(text);
-    if (parsed.error) return null;
-    var model = Book.parse(parsed.doc);
-    if (model) openBook.reader = Book.create(model);
+    openBook.label = '';
+
+    if (kind === 'xml') {
+      var parsed = Structured.parseXml(text);
+      if (parsed.error) return null;
+      var model = Book.parse(parsed.doc);
+      if (model) {
+        openBook.reader = Book.create(model);
+        openBook.label = model.title + ' · ' + model.reading.length + ' sections';
+      }
+      return openBook.reader;
+    }
+
+    if (kind === 'json') {
+      try {
+        // Read-only here: on the desktop the text itself is right beside this.
+        var found = Records.collections(JSON.parse(text));
+        if (found.length) {
+          openBook.reader = Records.create({ collection: found[0] });
+          openBook.label = (found[0].label === 'root' ? 'records' : found[0].label) +
+            ' · ' + found[0].count + ' records';
+        }
+      } catch (error) { /* the tree reports the problem */ }
+    }
     return openBook.reader;
   }
 
@@ -164,16 +185,17 @@
     dom.outline.textContent = '';
     var verdict = document.createElement('p');
     verdict.className = data.error ? 'empty is-error' : 'empty';
-    verdict.textContent = reader
-      ? reader.model.title + ' · ' + reader.model.reading.length + ' sections'
-      : (data.error || data.summary);
+    verdict.textContent = reader ? openBook.label : (data.error || data.summary);
     dom.outline.appendChild(verdict);
 
     var controls = reader
-      ? [[state.bookMode ? 'Show the raw tree' : 'Show the book', function () {
+      ? [[state.bookMode ? 'Show the raw tree' : 'Show the structure', function () {
           state.bookMode = !state.bookMode;
           renderPreview();
-        }], ['Contents', function () { reader.showContents(); }]]
+        }], ['Back to the list', function () {
+          if (reader.showContents) reader.showContents();
+          else if (reader.showList) reader.showList();
+        }]]
       : [['Expand all', function () { Structured.expandAll(dom.preview, true); }],
          ['Collapse all', function () { Structured.expandAll(dom.preview, false); }]];
 

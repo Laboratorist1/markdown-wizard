@@ -11,8 +11,9 @@ No accounts, no servers, no network. Your documents stay on your device.
   <img src="docs/book-chapter.png" alt="Reading a chapter" width="220">
 </p>
 <p>
+  <img src="docs/records.png" alt="A JSON list shown as records" width="220">
+  <img src="docs/record-detail.png" alt="One record, field by field" width="220">
   <img src="docs/json.png" alt="JSON tree on a phone" width="220">
-  <img src="docs/xml.png" alt="XML tree on a phone" width="220">
 </p>
 
 ---
@@ -55,6 +56,30 @@ the content when a name says nothing.
 
 Creating a document whose name ends in `.json` or `.xml` starts it in that
 format; anything else is Markdown. Sharing exports with the right extension.
+
+### Records hidden inside JSON
+
+`{"books": [ …29 objects, 11 fields each… ]}` is a table, and a tree shows it as
+`0: { 11 keys }` twenty-nine times over. So an array of objects that mostly
+agree about their fields opens as **records** instead: a row each, led by the
+field a person would read (`title`, `name`, …) and summarised by real
+attributes rather than identifiers.
+
+- **Filter** across every field, or pin the filter to one field
+- **Sort** by any field, either direction
+- **Tap a record** to see every field, typed and coloured, and tap a field to
+  change it
+
+Editing is the part worth being careful about. A value is edited through the
+parsed document and the file is written back with `JSON.stringify`, so the only
+text this app ever writes is valid JSON — a document cannot be left broken by
+editing it. Types are kept: a number field refuses text, a boolean is a choice
+rather than a text box, and a nested object or array is edited as JSON that has
+to parse before it will be accepted. The document's own indentation is
+preserved, so one changed value does not reformat every line.
+
+The raw tree is still one tap away under **Tree**, and JSON that is not a list
+of records still opens as the tree.
 
 ### Books hidden inside XML
 
@@ -161,7 +186,7 @@ markdown-wizard/
 ├── lib/ icons/                                            #   root so Pages
 │                                                          #   serves /<repo>/
 ├── extension/          # the Chrome extension, self-contained so it zips
-├── shared/             # the renderers (Markdown, JSON, XML, books), copied into both
+├── shared/             # the renderers (Markdown, JSON, XML, books, records)
 ├── docs/               # screenshots
 └── tools/
     ├── e2e-mobile.js       # Playwright checks, phone-emulated

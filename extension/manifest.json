@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Markdown Wizard",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Read and edit Markdown, JSON and XML files straight from disk: rendered preview, collapsible data trees, live editor, folder workspace.",
   "minimum_chrome_version": "116",
   "icons": {
@@ -52,12 +52,14 @@
         "src/lib/markdown.js",
         "src/lib/structured.js",
         "src/lib/book.js",
+        "src/lib/records.js",
         "src/viewer/viewer.js"
       ],
       "css": [
         "src/lib/markdown.css",
         "src/lib/structured.css",
         "src/lib/book.css",
+        "src/lib/records.css",
         "src/viewer/viewer.css"
       ],
       "run_at": "document_idle"

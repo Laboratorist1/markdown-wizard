@@ -406,6 +406,171 @@ async function main() {
   await page.click('#btn-view');
   await page.click('#btn-back');
 
+  /* ------------------------------------------------ records inside JSON */
+
+  const library = JSON.stringify({
+    books: [
+      { id: 1, title: 'The Missing Link', author: 'Eaton', year: 2017, read: true,
+        tags: ['web', 'html'], rating: 4.5, notes: null, publisher: 'Milne', pages: 210, isbn: 'a1' },
+      { id: 2, title: 'Designing Data-Intensive Applications', author: 'Kleppmann', year: 2017,
+        read: false, tags: ['data'], rating: 5, notes: 'reread', publisher: "O'Reilly",
+        pages: 616, isbn: 'b2' },
+      { id: 3, title: 'A Philosophy of Software Design', author: 'Ousterhout', year: 2018,
+        read: true, tags: ['design'], rating: 4, notes: null, publisher: 'Yaknyam',
+        pages: 190, isbn: 'c3' }
+    ]
+  }, null, 2) + '\n';
+
+  const shape = await page.evaluate((text) => {
+    const found = Records.collections(JSON.parse(text));
+    return {
+      count: found.length,
+      label: found[0].label,
+      records: found[0].count,
+      fields: found[0].fields.length,
+      // A list of unlike things is not a table.
+      notACollection: Records.collections({ a: [1, 2, 3], b: [{ x: 1 }, { y: 2 }] }).length,
+      indentKept: Records.indentOf('{\n    "a": 1\n}'),
+      tabKept: Records.indentOf('{\n\t"a": 1\n}')
+    };
+  }, library);
+
+  check('an array of like objects is found', shape.records, 3);
+  check('and named by where it sits', shape.label, 'books');
+  check('with every field counted', shape.fields, 11);
+  check('objects with nothing in common are not a table', shape.notACollection, 0);
+  check('the document\'s own indentation is kept', shape.indentKept, 4);
+  check('including tabs', shape.tabKept, '\t');
+
+  await importFile(page, 'Current Books.json', library);
+  await page.waitForFunction(() => document.querySelectorAll('.doc-item').length === 7);
+  await openDoc(page, 'Current Books');
+  await page.click('#btn-view');
+  await page.waitForSelector('#data-view:not([hidden])');
+
+  check('a JSON list of records opens as records, not a tree',
+    await page.$$eval('.rc-card', (n) => n.length), 3);
+  check('each row leads with the telling field',
+    await page.$$eval('.rc-card-title', (n) => n.map((x) => x.textContent)),
+    ['The Missing Link', 'Designing Data-Intensive Applications', 'A Philosophy of Software Design']);
+  check('the status line says what is in there',
+    await page.textContent('#data-status'), 'books · 3 records');
+  check('a row is summarised by real attributes, not its id',
+    await page.$$eval('.rc-card-field', (n) => n.slice(0, 3).map((x) => x.textContent)),
+    ['author: ', 'year: ', 'read: ']);
+
+  await page.fill('.rc-search', 'kleppmann');
+  check('filtering across fields narrows the list',
+    await page.$$eval('.rc-card-title', (n) => n.map((x) => x.textContent)),
+    ['Designing Data-Intensive Applications']);
+  check('and says how many matched',
+    await page.textContent('.rc-count'), '1 of 3 records');
+
+  await page.selectOption('.rc-select', 'title');
+  check('filtering can be pinned to one field',
+    await page.$$eval('.rc-card', (n) => n.length), 0);
+  await page.fill('.rc-search', '');
+  await page.selectOption('.rc-select', '');
+
+  await page.selectOption('.rc-controls .rc-select:nth-of-type(2)', 'year');
+  check('sorting by a field reorders the rows',
+    await page.$$eval('.rc-card-title', (n) => n[n.length - 1].textContent),
+    'A Philosophy of Software Design');
+  await page.click('.rc-direction');
+  check('and can be reversed',
+    await page.$$eval('.rc-card-title', (n) => n[0].textContent),
+    'A Philosophy of Software Design');
+  await page.click('.rc-direction');
+  await page.selectOption('.rc-controls .rc-select:nth-of-type(2)', '');
+
+  /* ------------------------------------------------- editing stays valid */
+
+  await page.click('.rc-card:has-text("The Missing Link")');
+  await page.waitForSelector('.rc-detail:not([hidden])');
+  check('a record shows every field', await page.$$eval('.rc-field', (n) => n.length), 11);
+
+  await page.click('.rc-field:has-text("author")');
+  await page.fill('#prompt-input', 'Eaton, C.');
+  await page.click('.prompt-button.primary');
+  await page.waitForSelector('#prompt', { state: 'hidden' });
+
+  const afterEdit = await page.evaluate(() => {
+    const text = document.getElementById('editor').value;
+    let parsed = null;
+    let error = null;
+    try { parsed = JSON.parse(text); } catch (e) { error = e.message; }
+    return { error: error, author: parsed && parsed.books[0].author,
+      year: parsed && parsed.books[0].year, indent: text.indexOf('\n  "books"') !== -1 };
+  });
+  check('the document is still valid JSON after an edit', afterEdit.error, null);
+  check('the edited field changed', afterEdit.author, 'Eaton, C.');
+  check('its neighbours did not', afterEdit.year, 2017);
+  check('and the indentation is unchanged', afterEdit.indent, true);
+
+  // A number field must stay a number.
+  await page.click('.rc-field:has-text("pages")');
+  await page.fill('#prompt-input', 'not a number');
+  await page.click('.prompt-button.primary');
+  await page.waitForFunction(() =>
+    document.getElementById('toast').textContent === 'That field holds a number.');
+  check('a number field refuses text',
+    await page.evaluate(() => JSON.parse(document.getElementById('editor').value).books[0].pages), 210);
+
+  await page.click('.rc-field:has-text("pages")');
+  await page.fill('#prompt-input', '211');
+  await page.click('.prompt-button.primary');
+  await page.waitForSelector('#prompt', { state: 'hidden' });
+  check('but takes a number as a number',
+    await page.evaluate(() => JSON.parse(document.getElementById('editor').value).books[0].pages), 211);
+
+  // A boolean is a choice, not a text box.
+  await page.click('.rc-field:has-text("read")');
+  await page.click('.prompt-button:has-text("false")');
+  await page.waitForSelector('#prompt', { state: 'hidden' });
+  check('a boolean field is edited as a choice',
+    await page.evaluate(() => JSON.parse(document.getElementById('editor').value).books[0].read), false);
+
+  // A nested value is edited as JSON, and has to parse.
+  await page.click('.rc-field:has-text("tags")');
+  await page.fill('#prompt-input', '["web", "html", "xml"');
+  await page.click('.prompt-button.primary');
+  await page.waitForFunction(() => document.getElementById('toast').textContent ===
+    'That is not valid JSON, so nothing was changed.');
+  check('a broken nested value is refused',
+    await page.evaluate(() => JSON.parse(document.getElementById('editor').value).books[0].tags.length), 2);
+
+  await page.click('.rc-field:has-text("tags")');
+  await page.fill('#prompt-input', '["web", "html", "xml"]');
+  await page.click('.prompt-button.primary');
+  await page.waitForSelector('#prompt', { state: 'hidden' });
+  check('a valid nested value is taken',
+    await page.evaluate(() => JSON.parse(document.getElementById('editor').value).books[0].tags),
+    ['web', 'html', 'xml']);
+
+  check('the whole document is still valid after all of that',
+    await page.evaluate(() => {
+      try { JSON.parse(document.getElementById('editor').value); return 'valid'; }
+      catch (e) { return e.message; }
+    }), 'valid');
+
+  await page.click('.rc-back');
+  check('deleting a record removes exactly one', await (async () => {
+    await page.click('.rc-card:has-text("A Philosophy")');
+    await page.click('.rc-delete');
+    await page.click('.prompt-button.danger');
+    await page.waitForSelector('#prompt', { state: 'hidden' });
+    return page.evaluate(() => JSON.parse(document.getElementById('editor').value).books.length);
+  })(), 2);
+
+  await page.click('[data-data-cmd="mode"]');
+  check('the raw tree is still there', await page.$$eval('#data-view .st-tree', (n) => n.length), 1);
+  await page.click('[data-data-cmd="mode"]');
+  check('and the records come back', await page.$$eval('#data-view .rc', (n) => n.length), 1);
+
+  await page.waitForFunction(() => document.getElementById('save-state').textContent === 'Saved');
+  await page.click('#btn-view');
+  await page.click('#btn-back');
+
   /* -------------------------------------------------- books inside XML */
 
   const bookXml = fs.readFileSync(path.join(ROOT, 'extension', 'sample-book.xml'), 'utf8');
@@ -493,7 +658,7 @@ async function main() {
   check('outbound links are made safe', bookUnit.linkTarget, 'noopener noreferrer');
 
   await importFile(page, 'A Sample Open Textbook.xml', bookXml);
-  await page.waitForFunction(() => document.querySelectorAll('.doc-item').length === 7);
+  await page.waitForFunction(() => document.querySelectorAll('.doc-item').length === 8);
   await openDoc(page, 'A Sample Open Textbook');
   await page.click('#btn-view');
   await page.waitForSelector('#data-view:not([hidden])');

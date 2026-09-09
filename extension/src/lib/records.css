@@ -1,0 +1,180 @@
+/* The record view: a filterable list of rows, and one record in detail. */
+
+.rc {
+  --rc-fg: #1f2328;
+  --rc-muted: #59636e;
+  --rc-border: #d1d9e0;
+  --rc-accent: #0969da;
+  --rc-inset: #f6f8fa;
+  --rc-string: #0a7d33;
+  --rc-number: #953800;
+  --rc-boolean: #8250df;
+  --rc-danger: #cf222e;
+  color: var(--rc-fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  font-size: 15px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .rc {
+    --rc-fg: #e6edf3;
+    --rc-muted: #9198a1;
+    --rc-border: #30363d;
+    --rc-accent: #4493f8;
+    --rc-inset: #161b22;
+    --rc-string: #7ee787;
+    --rc-number: #ffa657;
+    --rc-boolean: #d2a8ff;
+    --rc-danger: #f85149;
+  }
+}
+
+.rc-controls { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+
+.rc-search {
+  flex: 1 1 100%;
+  padding: 9px 12px;
+  color: inherit;
+  background: var(--rc-inset);
+  border: 1px solid var(--rc-border);
+  border-radius: 9px;
+  outline: none;
+  font: inherit;
+  -webkit-appearance: none;
+}
+
+.rc-search:focus { border-color: var(--rc-accent); }
+
+.rc-select {
+  flex: 1 1 40%;
+  min-width: 0;
+  padding: 8px 10px;
+  color: inherit;
+  background: var(--rc-inset);
+  border: 1px solid var(--rc-border);
+  border-radius: 9px;
+  font: inherit;
+  font-size: 14px;
+}
+
+.rc-direction {
+  flex: none;
+  padding: 8px 12px;
+  color: var(--rc-accent);
+  background: var(--rc-inset);
+  border: 1px solid var(--rc-border);
+  border-radius: 9px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.rc-count { margin: 0 2px 10px; color: var(--rc-muted); font-size: 12px; }
+
+.rc-list { display: flex; flex-direction: column; }
+
+.rc-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: 11px 10px;
+  text-align: left;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--rc-border);
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.rc-card:active, .rc-card:hover { background: var(--rc-inset); }
+.rc-card-title { font-weight: 600; line-height: 1.35; }
+
+.rc-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: baseline;
+  color: var(--rc-muted);
+  font-size: 13px;
+}
+
+.rc-card-field { color: var(--rc-muted); }
+.rc-card-value { color: var(--rc-fg); }
+.rc-dot { opacity: 0.5; }
+.rc-empty { margin: 16px 2px; color: var(--rc-muted); font-style: italic; }
+
+/* ------------------------------------------------------------------ detail */
+
+.rc-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--rc-border);
+}
+
+.rc-back {
+  padding: 8px 14px;
+  color: var(--rc-accent);
+  background: var(--rc-inset);
+  border: 1px solid var(--rc-border);
+  border-radius: 9px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.rc-back::before { content: "‹ "; }
+.rc-where { margin-left: auto; color: var(--rc-muted); font-size: 12px; }
+.rc-detail-title { margin: 16px 0 14px; font-size: 20px; line-height: 1.25; }
+
+.rc-fields { display: flex; flex-direction: column; }
+
+.rc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 10px;
+  text-align: left;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--rc-border);
+  font: inherit;
+  font-size: 15px;
+}
+
+button.rc-field { cursor: pointer; border-radius: 6px; }
+button.rc-field:active, button.rc-field:hover { background: var(--rc-inset); }
+
+.rc-field-name {
+  color: var(--rc-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.rc-field-value { word-break: break-word; white-space: pre-wrap; }
+.rc-type-string { color: var(--rc-string); }
+.rc-type-number { color: var(--rc-number); }
+.rc-type-boolean { color: var(--rc-boolean); }
+.rc-type-null, .rc-type-undefined { color: var(--rc-muted); font-style: italic; }
+.rc-type-object, .rc-type-array { color: var(--rc-muted); }
+
+.rc-delete {
+  align-self: flex-start;
+  margin-top: 18px;
+  padding: 9px 14px;
+  color: var(--rc-danger);
+  background: none;
+  border: 1px solid currentColor;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}

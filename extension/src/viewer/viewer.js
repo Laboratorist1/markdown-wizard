@@ -65,6 +65,8 @@
   var rendered = null;
   var structured = null;
   var reader = null;
+  var richLabel = '';
+  var richName = 'Rich';
 
   if (isData) {
     structured = Structured.render(kind, source);
@@ -73,7 +75,24 @@
     if (kind === 'xml' && !structured.error) {
       var parsed = Structured.parseXml(source);
       var model = parsed.error ? null : Book.parse(parsed.doc);
-      if (model) reader = Book.create(model);
+      if (model) {
+        reader = Book.create(model);
+        richLabel = model.title + ' - ' + model.reading.length + ' sections';
+        richName = 'Contents';
+      }
+    }
+
+    // A list of like objects is a table, not twenty-nine identical twigs.
+    if (kind === 'json' && !structured.error) {
+      try {
+        var found = Records.collections(JSON.parse(source));
+        if (found.length) {
+          reader = Records.create({ collection: found[0] });
+          richLabel = (found[0].label === 'root' ? 'records' : found[0].label) +
+            ' - ' + found[0].count + ' records';
+          richName = 'Records';
+        }
+      } catch (error) { /* the tree will report why */ }
     }
     article.appendChild(reader ? reader.node : structured.node);
   } else {
@@ -91,13 +110,11 @@
   if (isData) {
     side.appendChild(el('p', {
       className: 'mds-side-title',
-      textContent: reader ? 'Book' : Structured.label(kind)
+      textContent: reader ? richName : Structured.label(kind)
     }));
     side.appendChild(el('p', {
       className: structured.error ? 'mds-side-error' : 'mds-side-note',
-      textContent: reader
-        ? reader.model.reading.length + ' sections · ' + structured.summary
-        : (structured.error || structured.summary)
+      textContent: reader ? richLabel : (structured.error || structured.summary)
     }));
 
     var actions = [];
@@ -109,9 +126,10 @@
         swap.textContent = showingBook ? 'Raw tree' : 'Contents';
       });
       actions.push(swap);
-      actions.push(button('Contents', 'Back to the table of contents', function () {
+      actions.push(button(richName, 'Back to the list', function () {
         if (!showingBook) swap.click();
-        reader.showContents();
+        if (reader.showContents) reader.showContents();
+        else if (reader.showList) reader.showList();
       }));
     } else {
       actions.push(button('Expand all', 'Open every node', function () { Structured.expandAll(article, true); }));
@@ -172,8 +190,7 @@
   var metaText;
   if (isData) {
     var lines = source.split('\n').length;
-    metaText = reader
-      ? reader.model.title + ' - ' + reader.model.reading.length + ' sections'
+    metaText = reader ? richLabel
       : lines.toLocaleString() + (lines === 1 ? ' line' : ' lines') + ' - ' + structured.summary;
   } else {
     var words = source.trim() ? source.trim().split(/\s+/).length : 0;

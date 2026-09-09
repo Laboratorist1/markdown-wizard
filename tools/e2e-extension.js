@@ -323,6 +323,34 @@ async function main() {
   });
   check('and saves back to the same file', savedJson.startsWith('{\n  "b": 2'), true);
 
+  /* -------------------------------------------------- records in a tab */
+
+  const recordsPage = await ctx.newPage();
+  watch(recordsPage, 'records viewer');
+  await recordsPage.goto(`http://localhost:${PORT}/sample-records.json`);
+  await recordsPage.waitForSelector('.mds-shell', { timeout: 5000 });
+  check('a JSON list of records opens as records',
+    await recordsPage.$$eval('.rc-card', (n) => n.length), 4);
+  check('rows lead with the telling field',
+    await recordsPage.$$eval('.rc-card-title', (n) => n[0].textContent), 'Ada Lovelace');
+  check('the panel says what it found',
+    await recordsPage.textContent('.mds-side-note'), 'people - 4 records');
+
+  await recordsPage.fill('.rc-search', 'turing');
+  check('the list can be filtered',
+    await recordsPage.$$eval('.rc-card', (n) => n.length), 1);
+  await recordsPage.fill('.rc-search', '');
+
+  await recordsPage.click('.rc-card:has-text("Ada Lovelace")');
+  check('a record shows its fields',
+    await recordsPage.$$eval('.rc-field', (n) => n.length), 5);
+  check('and is read-only in a page',
+    await recordsPage.$$eval('button.rc-field', (n) => n.length), 0);
+
+  await recordsPage.click('button.mds-btn:has-text("Raw tree")');
+  check('the tree is still available for records too',
+    await recordsPage.$$eval('.st-tree', (n) => n.length), 1);
+
   /* --------------------------------------------------- a book in a tab */
 
   const bookPage = await ctx.newPage();

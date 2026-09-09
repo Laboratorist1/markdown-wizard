@@ -17,7 +17,7 @@
   var AUTOSAVE_MS = 700;
   // Shown in the library footer so it is possible to tell which build is
   // actually running after an update; keep in step with the cache in sw.js.
-  var BUILD = 'build 7';
+  var BUILD = 'build 9';
   var PREVIEW_CHARS = 160;
 
   /* =====================================================================
@@ -812,7 +812,7 @@
       };
       dom.editor.value = doc.text;
       dom.title.textContent = doc.meta.title;
-      book = { text: null, reader: null, mode: 'book' };
+      rich = { text: null, kind: null, widget: null, label: '', mode: 'rich', root: null };
       applyKind(current.kind);
       hideConflict();
       setPreview(false);
@@ -868,17 +868,147 @@
      carries chapters as <item> elements - and a tree of 5,000 elements is a
      useless way to read one. Those get a table of contents instead, with the
      raw tree still a button away. */
-  var book = { text: null, reader: null, mode: 'book' };
+  /* A tree is right for arbitrary data and wrong for data with a shape: a
+     WordPress export is a book, and an array of like objects is a table. Both
+     get a view of their own, with the tree still a tap away. */
+  var rich = { text: null, kind: null, widget: null, label: '', mode: 'rich', root: null };
 
   function bookFor(text) {
-    if (book.text === text) return book.reader;
-    book.text = text;
-    book.reader = null;
+    if (rich.text === text && rich.kind === 'xml') return rich.widget;
+    resetRich(text, 'xml');
     var parsed = Structured.parseXml(text);
     if (parsed.error) return null;
     var model = Book.parse(parsed.doc);
-    if (model) book.reader = Book.create(model);
-    return book.reader;
+    if (model) {
+      rich.widget = Book.create(model);
+      rich.label = model.title + ' · ' + model.reading.length +
+        (model.reading.length === 1 ? ' section' : ' sections');
+      rich.alternateName = 'Contents';
+    }
+    return rich.widget;
+  }
+
+  function recordsFor(text) {
+    if (rich.text === text && rich.kind === 'json') return rich.widget;
+    resetRich(text, 'json');
+
+    var root;
+    try {
+      root = JSON.parse(text);
+    } catch (error) {
+      return null;
+    }
+
+    var found = Records.collections(root);
+    if (!found.length) return null;
+    var collection = found[0];
+
+    rich.root = root;
+    rich.widget = Records.create({
+      collection: collection,
+      onEdit: editRecordField,
+      onDelete: confirmRecordDelete,
+      onChange: writeBackRecords
+    });
+    rich.label = (collection.label === 'root' ? 'records' : collection.label) + ' · ' +
+      collection.count + (collection.count === 1 ? ' record' : ' records');
+    rich.alternateName = 'Records';
+    return rich.widget;
+  }
+
+  function resetRich(text, kind) {
+    rich.text = text;
+    rich.kind = kind;
+    rich.widget = null;
+    rich.root = null;
+    rich.label = '';
+    rich.alternateName = 'Rich';
+  }
+
+  /** Editing goes through the parsed value and the document is written back
+      with JSON.stringify, so a document cannot be left invalid by editing. */
+  function writeBackRecords() {
+    if (!rich.root) return;
+    var next = Records.serialise(rich.root, dom.editor.value);
+    dom.editor.value = next;
+    // Keep the cache in step so the open record and filter survive the save.
+    rich.text = next;
+    dom.editor.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  /** Asks for a new value, keeping the type the field already had. */
+  function editRecordField(record, field, value) {
+    var kind = Records.typeOf(value);
+
+    if (kind === 'boolean') {
+      return ask({
+        title: field,
+        text: 'Currently ' + value + '.',
+        actions: [
+          { label: 'Cancel', value: null },
+          { label: 'false', value: 'false' },
+          { label: 'true', value: 'true', primary: true }
+        ]
+      }).then(function (choice) {
+        if (choice === null) return null;
+        return { value: choice === 'true' };
+      });
+    }
+
+    var asText = kind === 'object' || kind === 'array'
+      ? JSON.stringify(value, null, 2)
+      : (value === undefined || value === null ? '' : String(value));
+
+    return ask({
+      title: field,
+      text: kind === 'object' || kind === 'array'
+        ? 'Edited as JSON; it has to parse before it will be saved.'
+        : 'Currently a ' + kind + '.',
+      input: { value: asText, placeholder: field },
+      actions: [
+        { label: 'Cancel', value: null },
+        { label: 'Save', value: 'save', primary: true }
+      ]
+    }).then(function (result) {
+      if (!result || result.value !== 'save') return null;
+      var text = result.text;
+
+      if (kind === 'object' || kind === 'array') {
+        try {
+          return { value: JSON.parse(text) };
+        } catch (error) {
+          toast('That is not valid JSON, so nothing was changed.', true);
+          return null;
+        }
+      }
+      if (kind === 'number') {
+        var number = Number(text);
+        if (text.trim() === '' || isNaN(number)) {
+          toast('That field holds a number.', true);
+          return null;
+        }
+        return { value: number };
+      }
+      if (kind === 'string') return { value: text };
+
+      // Null or absent: take whatever JSON it parses as, or a plain string.
+      try {
+        return { value: JSON.parse(text) };
+      } catch (error) {
+        return { value: text };
+      }
+    });
+  }
+
+  function confirmRecordDelete(record) {
+    return ask({
+      title: 'Delete this record?',
+      text: 'It is removed from the document when you save.',
+      actions: [
+        { label: 'Cancel', value: null },
+        { label: 'Delete', value: 'delete', danger: true }
+      ]
+    }).then(function (choice) { return choice === 'delete'; });
   }
 
   /** Markdown renders to HTML; JSON and XML render to a tree of real nodes,
@@ -890,14 +1020,13 @@
       return;
     }
 
-    var reader = kind === 'xml' ? bookFor(dom.editor.value) : null;
-    updateDataBar(!!reader);
+    var widget = kind === 'xml' ? bookFor(dom.editor.value)
+      : kind === 'json' ? recordsFor(dom.editor.value) : null;
+    updateDataBar(!!widget);
 
-    if (reader && book.mode === 'book') {
-      dom.dataView.replaceChildren(reader.node);
-      var count = reader.model.reading.length;
-      setDataStatus(reader.model.title + ' · ' + count +
-        (count === 1 ? ' section' : ' sections'), false);
+    if (widget && rich.mode === 'rich') {
+      if (dom.dataView.firstChild !== widget.node) dom.dataView.replaceChildren(widget.node);
+      setDataStatus(rich.label, false);
       return;
     }
 
@@ -908,12 +1037,12 @@
 
   /** The book toggle only exists for documents that are one, and Expand and
       Collapse only mean something in the tree. */
-  function updateDataBar(hasBook) {
+  function updateDataBar(hasRichView) {
     var modeButton = dom.dataBar.querySelector('[data-data-cmd="mode"]');
-    var reading = hasBook && book.mode === 'book';
+    var reading = hasRichView && rich.mode === 'rich';
     if (modeButton) {
-      modeButton.hidden = !hasBook;
-      modeButton.textContent = reading ? 'Tree' : 'Contents';
+      modeButton.hidden = !hasRichView;
+      modeButton.textContent = reading ? 'Tree' : (rich.alternateName || 'Rich');
     }
     ['expand', 'collapse'].forEach(function (name) {
       var node = dom.dataBar.querySelector('[data-data-cmd="' + name + '"]');
@@ -1075,7 +1204,7 @@
     var action = button.dataset.dataCmd;
 
     if (action === 'mode') {
-      book.mode = book.mode === 'book' ? 'tree' : 'book';
+      rich.mode = rich.mode === 'rich' ? 'tree' : 'rich';
       if (!showingPreview) setPreview(true);
       else paintPreview();
       return;
