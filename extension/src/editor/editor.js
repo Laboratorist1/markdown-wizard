@@ -60,6 +60,7 @@
     lastModified: 0,
     workspace: null,
     kind: 'markdown',
+    bookMode: true,
     files: [],
     prefs: null,
     suppressScrollSync: false,
@@ -134,30 +135,54 @@
       renderOutline(result.headings);
     } else {
       var data = Structured.render(state.kind, dom.editor.value);
+      var reader = state.kind === 'xml' && !data.error ? bookFor(dom.editor.value) : null;
       dom.preview.className = 'st-host';
-      dom.preview.replaceChildren(data.node);
-      renderDataPanel(data);
+      dom.preview.replaceChildren(reader && state.bookMode ? reader.node : data.node);
+      renderDataPanel(data, reader);
     }
     updateCounts();
   }, 110);
 
-  /** For JSON and XML the outline panel becomes a verdict plus the two controls
+  /* An RSS, Atom or WordPress/Pressbooks export is a book; keep the parsed
+     reader around so switching views does not lose your place. */
+  var openBook = { text: null, reader: null };
+
+  function bookFor(text) {
+    if (openBook.text === text) return openBook.reader;
+    openBook.text = text;
+    openBook.reader = null;
+    var parsed = Structured.parseXml(text);
+    if (parsed.error) return null;
+    var model = Book.parse(parsed.doc);
+    if (model) openBook.reader = Book.create(model);
+    return openBook.reader;
+  }
+
+  /** For JSON and XML the outline panel becomes a verdict plus the controls
       that actually help with a big document. */
-  function renderDataPanel(data) {
+  function renderDataPanel(data, reader) {
     dom.outline.textContent = '';
     var verdict = document.createElement('p');
     verdict.className = data.error ? 'empty is-error' : 'empty';
-    verdict.textContent = data.error || data.summary;
+    verdict.textContent = reader
+      ? reader.model.title + ' · ' + reader.model.reading.length + ' sections'
+      : (data.error || data.summary);
     dom.outline.appendChild(verdict);
 
-    [['Expand all', true], ['Collapse all', false]].forEach(function (pair) {
+    var controls = reader
+      ? [[state.bookMode ? 'Show the raw tree' : 'Show the book', function () {
+          state.bookMode = !state.bookMode;
+          renderPreview();
+        }], ['Contents', function () { reader.showContents(); }]]
+      : [['Expand all', function () { Structured.expandAll(dom.preview, true); }],
+         ['Collapse all', function () { Structured.expandAll(dom.preview, false); }]];
+
+    controls.forEach(function (pair) {
       var button = document.createElement('button');
       button.type = 'button';
       button.className = 'outline-item';
       button.textContent = pair[0];
-      button.addEventListener('click', function () {
-        Structured.expandAll(dom.preview, pair[1]);
-      });
+      button.addEventListener('click', pair[1]);
       dom.outline.appendChild(button);
     });
   }

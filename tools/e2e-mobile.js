@@ -98,7 +98,10 @@ async function main() {
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
   page.on('console', (m) => {
     const url = (m.location() && m.location().url) || '';
-    if (m.type() === 'error' && !url.includes('favicon')) errors.push('console: ' + m.text());
+    const text = m.text();
+    const networkNoise = url.includes('favicon') ||
+      /Failed to load resource/.test(text); // fixture images point at hosts that do not exist
+    if (m.type() === 'error' && !networkNoise) errors.push('console: ' + text);
   });
 
   await page.goto(BASE);
@@ -131,8 +134,7 @@ async function main() {
   await page.waitForFunction(() => !!window.MarkdownWizardMobile);
   check('the document survives a reload', await docCount(page), 1);
 
-  await page.click('.doc-open');
-  await page.waitForSelector('#screen-editor:not([hidden])');
+  await openDoc(page, 'Trip notes');
   var SEED = '# Trip notes\n\n';
   check('reopening shows the saved text',
     await page.inputValue('#editor'), SEED + 'Ferry leaves at six.');
@@ -144,7 +146,7 @@ async function main() {
   await page.click('#btn-back');
 
   check('editing did NOT create a second document', await docIds(page), firstIds);
-  await page.click('.doc-open');
+  await openDoc(page, 'Trip notes');
   check('the edit landed in the same document',
     await page.inputValue('#editor'), SEED + 'Ferry leaves at six. Bring a coat.');
 
@@ -169,7 +171,10 @@ async function main() {
 
   // Same name, same bytes: nothing to do.
   await importFile(page, 'Packing.md', '# Packing\n\n- socks\n');
-  await page.waitForSelector('#toast:not([hidden])');
+  // Wait for this toast specifically: a leftover one from the previous step
+  // would satisfy a bare "a toast is visible" wait.
+  await page.waitForFunction(() =>
+    document.getElementById('toast').textContent === 'Packing is already in your library');
   check('re-importing an identical file is a no-op',
     await page.textContent('#toast'), 'Packing is already in your library');
   check('...and does not add a document', await docCount(page), 2);
@@ -356,16 +361,32 @@ async function main() {
   await page.waitForFunction(() => document.getElementById('save-state').textContent === 'Saved');
   await page.click('#btn-back');
 
-  await importFile(page, 'feed.xml',
-    '<?xml version="1.0"?><feed><entry id="1"><title>One</title></entry><entry id="2"><title>Two</title></entry></feed>');
+  await importFile(page, 'settings.xml',
+    '<?xml version="1.0"?><config><server name="alpha"><port>80</port></server></config>');
   await page.waitForFunction(() => document.querySelectorAll('.doc-item').length === 5);
-  await openDoc(page, 'feed');
-  check('XML is recognised', await page.textContent('#data-status'), 'well-formed XML · 5 elements');
+  await openDoc(page, 'settings');
+  check('XML is recognised', await page.textContent('#data-status'), 'well-formed XML · 3 elements');
   check('Minify is hidden for XML', await page.isHidden('[data-data-cmd="minify"]'), true);
 
   await page.click('#btn-view');
-  check('tags are shown', await page.$$eval('#data-view .st-tag', (n) => n[0].textContent), 'feed');
-  check('attributes are shown', await page.$$eval('#data-view .st-attr', (n) => n[0].textContent), 'id');
+  check('tags are shown', await page.$$eval('#data-view .st-tag', (n) => n[0].textContent), 'config');
+  check('attributes are shown', await page.$$eval('#data-view .st-attr', (n) => n[0].textContent), 'name');
+  await page.click('#btn-view');
+  await page.click('#btn-back');
+
+  // An Atom feed is a list of things to read, so it gets the reader too.
+  await importFile(page, 'feed.xml',
+    '<?xml version="1.0"?><feed><title>A Small Feed</title>' +
+    '<entry><title>One</title><content>&lt;p&gt;First post.&lt;/p&gt;</content></entry>' +
+    '<entry><title>Two</title><content>&lt;p&gt;Second post.&lt;/p&gt;</content></entry></feed>');
+  await page.waitForFunction(() => document.querySelectorAll('.doc-item').length === 6);
+  await openDoc(page, 'feed');
+  await page.click('#btn-view');
+  check('an Atom feed lists its entries',
+    await page.$$eval('.bk-entry-title', (n) => n.map((x) => x.textContent)), ['One', 'Two']);
+  await page.click('.bk-entry:has-text("Two")');
+  check('and its entries can be read',
+    await page.textContent('.bk-body'), 'Second post.');
   await page.click('#btn-view');
   await page.click('#btn-back');
 
@@ -375,6 +396,109 @@ async function main() {
   check('and no data toolbar', await page.isHidden('#data-bar'), true);
   await page.click('#btn-view');
   check('and still renders as Markdown', await page.$$eval('#preview h1', (n) => n.length), 1);
+  await page.click('#btn-view');
+  await page.click('#btn-back');
+
+  /* -------------------------------------------------- books inside XML */
+
+  const bookXml = fs.readFileSync(path.join(ROOT, 'extension', 'sample-book.xml'), 'utf8');
+
+  const bookUnit = await page.evaluate((xml) => {
+    const parsed = Structured.parseXml(xml);
+    const model = Book.parse(parsed.doc);
+    const sanitized = document.createElement('div');
+    sanitized.appendChild(Book.sanitize(
+      '<p onclick="alert(1)">text</p><script>alert(2)<\/script>' +
+      '<a href="javascript:alert(3)">bad link</a><a href="https://ok.example">good</a>' +
+      '<img src="https://ok.example/a.png" alt="a"><img src="javascript:alert(4)" alt="b">' +
+      '<font color="red">unwrapped but kept</font><iframe src="https://evil.example"></iframe>'));
+
+    return {
+      title: model.title,
+      author: model.author,
+      sections: model.sections.map((s) => s.title),
+      partOne: model.sections.find((s) => s.title === 'Part One: Foundations').entries.map((e) => e.title),
+      reading: model.reading.map((e) => e.title),
+      firstWords: model.reading[0].words,
+      // Nothing dangerous may survive, and nothing readable may be lost.
+      scripts: sanitized.querySelectorAll('script, iframe').length,
+      handlers: sanitized.querySelector('p').hasAttribute('onclick'),
+      links: Array.from(sanitized.querySelectorAll('a')).map((a) => a.getAttribute('href')),
+      images: Array.from(sanitized.querySelectorAll('img')).map((i) => i.getAttribute('src')),
+      keptText: sanitized.textContent.indexOf('unwrapped but kept') !== -1,
+      linkTarget: sanitized.querySelector('a').getAttribute('rel')
+    };
+  }, bookXml);
+
+  check('reads the book title', bookUnit.title, 'A Sample Open Textbook');
+  check('reads the author from the metadata item', bookUnit.author, 'R. Author');
+  check('builds front matter, parts and back matter in order', bookUnit.sections,
+    ['Front matter', 'Part One: Foundations', 'Part Two: Practice', 'Back matter']);
+  check('orders chapters within a part by menu_order', bookUnit.partOne,
+    ['What Is a Link?', 'Kinds of Links']);
+  check('lays out one reading order across the whole book', bookUnit.reading,
+    ['Introduction', 'What Is a Link?', 'Kinds of Links', 'Making Links', 'Bibliography']);
+  check('skips trashed items, attachments and the metadata record',
+    bookUnit.reading.indexOf('A Draft Nobody Should See'), -1);
+  check('counts the words in a section', bookUnit.firstWords > 5, true);
+  check('sanitising drops scripts and frames', bookUnit.scripts, 0);
+  check('sanitising drops event handlers', bookUnit.handlers, false);
+  check('sanitising drops javascript: links', bookUnit.links, ['https://ok.example']);
+  check('sanitising drops javascript: images', bookUnit.images, ['https://ok.example/a.png']);
+  check('sanitising keeps the words of unknown tags', bookUnit.keptText, true);
+  check('outbound links are made safe', bookUnit.linkTarget, 'noopener noreferrer');
+
+  await importFile(page, 'A Sample Open Textbook.xml', bookXml);
+  await page.waitForFunction(() => document.querySelectorAll('.doc-item').length === 7);
+  await openDoc(page, 'A Sample Open Textbook');
+  await page.click('#btn-view');
+  await page.waitForSelector('#data-view:not([hidden])');
+
+  check('a book opens at its contents, not a tree',
+    await page.$$eval('.bk-entry', (n) => n.length), 5);
+  check('the contents are grouped into parts',
+    await page.$$eval('.bk-section-title', (n) => n.map((x) => x.textContent)),
+    ['Front matter', 'Part One: Foundations', 'Part Two: Practice', 'Back matter']);
+  check('the status line names the book',
+    await page.textContent('#data-status'), 'A Sample Open Textbook · 5 sections');
+
+  await page.fill('.bk-filter', 'link');
+  check('the contents can be filtered',
+    await page.$$eval('.bk-entry:not([hidden])', (n) => n.map((x) => x.querySelector('.bk-entry-title').textContent)),
+    ['What Is a Link?', 'Kinds of Links', 'Making Links']);
+  await page.fill('.bk-filter', '');
+
+  await page.click('.bk-entry:has-text("What Is a Link?")');
+  await page.waitForSelector('.bk-page:not([hidden])');
+  check('opening a chapter shows its prose',
+    await page.textContent('.bk-page-title'), 'What Is a Link?');
+  check('the chapter HTML is rendered, not escaped',
+    await page.$$eval('.bk-body h2, .bk-body blockquote, .bk-body table', (n) => n.length), 3);
+  check('where you are in the book is shown', await page.textContent('.bk-where'), '2 of 5');
+
+  await page.click('.bk-next');
+  check('Next moves through the book', await page.textContent('.bk-page-title'), 'Kinds of Links');
+  await page.click('.bk-prev');
+  check('Previous goes back', await page.textContent('.bk-page-title'), 'What Is a Link?');
+
+  await page.click('.bk-back');
+  check('Contents returns to the index', await page.isVisible('.bk-toc'), true);
+
+  await page.click('[data-data-cmd="mode"]');
+  check('the raw tree is still one tap away',
+    await page.$$eval('#data-view .st-tree', (n) => n.length), 1);
+  check('and the toggle offers the way back', await page.textContent('[data-data-cmd="mode"]'), 'Contents');
+  await page.click('[data-data-cmd="mode"]');
+  check('which returns to the book', await page.$$eval('#data-view .bk', (n) => n.length), 1);
+
+  // Ordinary XML has no book in it and must still show the tree.
+  await page.click('#btn-view');
+  await page.click('#btn-back');
+  await openDoc(page, 'settings');
+  await page.click('#btn-view');
+  check('plain XML still gets the tree',
+    await page.$$eval('#data-view .st-tree', (n) => n.length), 1);
+  check('and offers no book toggle', await page.isHidden('[data-data-cmd="mode"]'), true);
   await page.click('#btn-view');
   await page.click('#btn-back');
 

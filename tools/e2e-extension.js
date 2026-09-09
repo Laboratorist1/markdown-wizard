@@ -323,6 +323,47 @@ async function main() {
   });
   check('and saves back to the same file', savedJson.startsWith('{\n  "b": 2'), true);
 
+  /* --------------------------------------------------- a book in a tab */
+
+  const bookPage = await ctx.newPage();
+  watch(bookPage, 'book viewer');
+  await bookPage.goto(`http://localhost:${PORT}/sample-book.xml`);
+  await bookPage.waitForSelector('.mds-shell', { timeout: 5000 });
+
+  check('an export opens as a book, not a tree',
+    await bookPage.$$eval('.bk-entry', (n) => n.length), 5);
+  check('its parts are the contents',
+    await bookPage.$$eval('.bk-section-title', (n) => n.map((x) => x.textContent)),
+    ['Front matter', 'Part One: Foundations', 'Part Two: Practice', 'Back matter']);
+  check('the toolbar names the book',
+    await bookPage.textContent('.mds-meta'), 'A Sample Open Textbook - 5 sections');
+
+  await bookPage.click('.bk-entry:has-text("What Is a Link?")');
+  check('a chapter reads as prose',
+    await bookPage.$$eval('.bk-body h2', (n) => n[0].textContent), 'Definitions');
+  check('scripts inside the chapter are gone',
+    await bookPage.$$eval('.bk-body script', (n) => n.length), 0);
+  await bookPage.click('.bk-next');
+  check('and you can move to the next one',
+    await bookPage.textContent('.bk-page-title'), 'Kinds of Links');
+
+  await bookPage.click('button.mds-btn:has-text("Raw tree")');
+  check('the element tree is still available',
+    await bookPage.$$eval('.st-tree', (n) => n.length), 1);
+  await bookPage.click('button.mds-btn:has-text("Contents")');
+  check('and the book comes back',
+    await bookPage.$$eval('.bk-toc', (n) => n.length), 1);
+
+  check('plain XML is unaffected',
+    await (async () => {
+      const plain = await ctx.newPage();
+      await plain.goto(`http://localhost:${PORT}/sample.xml`);
+      await plain.waitForSelector('.mds-shell', { timeout: 5000 });
+      const trees = await plain.$$eval('.st-tree', (n) => n.length);
+      await plain.close();
+      return trees;
+    })(), 1);
+
   /* --------------------------------------------------------------- popup */
 
   const popup = await ctx.newPage();

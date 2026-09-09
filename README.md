@@ -7,6 +7,10 @@ No accounts, no servers, no network. Your documents stay on your device.
 
 <p>
   <img src="docs/library.png" alt="Document list on a phone" width="220">
+  <img src="docs/book-contents.png" alt="A book's table of contents" width="220">
+  <img src="docs/book-chapter.png" alt="Reading a chapter" width="220">
+</p>
+<p>
   <img src="docs/json.png" alt="JSON tree on a phone" width="220">
   <img src="docs/xml.png" alt="XML tree on a phone" width="220">
 </p>
@@ -51,6 +55,29 @@ the content when a name says nothing.
 
 Creating a document whose name ends in `.json` or `.xml` starts it in that
 format; anything else is Markdown. Sharing exports with the right extension.
+
+### Books hidden inside XML
+
+Some XML is not data to inspect — it is a book. A WordPress or Pressbooks
+export (WXR) carries chapters as `<item>` elements typed `front-matter`,
+`part`, `chapter` and `back-matter`, ordered by `wp:menu_order`, nested by
+`wp:post_parent`, with the prose as HTML inside `<content:encoded>`. As a
+generic element tree that is unreadable.
+
+So those open as a **book** instead: a table of contents grouped by part, with
+word counts and dates, a filter for finding a section by name, and a page view
+with Previous and Next. The raw tree is still one tap away, under **Tree**.
+Plain RSS and Atom feeds get the same treatment — a list of pieces you can
+read. XML that is not a book or a feed still gets the element tree.
+
+The prose inside those chapters is HTML written by someone else, so it is
+rebuilt node by node against an allowlist: scripts, frames, embedded objects,
+event handlers and `javascript:` URLs never survive, and anything unrecognised
+is unwrapped so its words are kept. There are tests that assert exactly that.
+
+One caveat: chapter images point at the site the book came from, so opening a
+chapter that has them will fetch them over the network. Everything else in the
+app stays on the device.
 
 JSON validity is checked by walking the grammar rather than reading the
 browser's error message, because those messages carry a position for some
@@ -113,7 +140,7 @@ markdown-wizard/
 ├── lib/ icons/                                            #   root so Pages
 │                                                          #   serves /<repo>/
 ├── extension/          # the Chrome extension, self-contained so it zips
-├── shared/             # the renderers (Markdown, JSON, XML), copied into both
+├── shared/             # the renderers (Markdown, JSON, XML, books), copied into both
 ├── docs/               # screenshots
 └── tools/
     ├── e2e-mobile.js       # Playwright checks, phone-emulated
@@ -122,11 +149,12 @@ markdown-wizard/
     └── make_icons.py       # regenerate every icon, no dependencies
 ```
 
-The renderers (`shared/markdown.js`, `shared/structured.js`) are written from
-scratch and bundled rather than fetched — Manifest V3 forbids remote code. The
-Markdown renderer escapes any HTML inside a document instead of executing it,
-and the JSON and XML viewers build real DOM nodes rather than markup, so opening
-a file you did not write cannot run anything.
+The renderers (`shared/markdown.js`, `shared/structured.js`, `shared/book.js`)
+are written from scratch and bundled rather than fetched — Manifest V3 forbids
+remote code. The Markdown renderer escapes any HTML inside a document instead of
+executing it, the JSON and XML viewers build real DOM nodes rather than markup,
+and the book reader rebuilds chapter HTML against an allowlist, so opening a
+file you did not write cannot run anything.
 
 ## Development
 

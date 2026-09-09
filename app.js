@@ -752,6 +752,7 @@
       };
       dom.editor.value = doc.text;
       dom.title.textContent = doc.meta.title;
+      book = { text: null, reader: null, mode: 'book' };
       applyKind(current.kind);
       hideConflict();
       setPreview(false);
@@ -803,16 +804,61 @@
     paintPreview();
   }, 90);
 
-  /** Markdown renders to HTML; JSON and XML render to a tree of real nodes. */
+  /* Some XML is really a book or a feed - a WordPress or Pressbooks export
+     carries chapters as <item> elements - and a tree of 5,000 elements is a
+     useless way to read one. Those get a table of contents instead, with the
+     raw tree still a button away. */
+  var book = { text: null, reader: null, mode: 'book' };
+
+  function bookFor(text) {
+    if (book.text === text) return book.reader;
+    book.text = text;
+    book.reader = null;
+    var parsed = Structured.parseXml(text);
+    if (parsed.error) return null;
+    var model = Book.parse(parsed.doc);
+    if (model) book.reader = Book.create(model);
+    return book.reader;
+  }
+
+  /** Markdown renders to HTML; JSON and XML render to a tree of real nodes,
+      unless the XML turns out to be a book. */
   function paintPreview() {
     var kind = current ? current.kind : 'markdown';
     if (kind === 'markdown') {
       dom.preview.innerHTML = MD.render(dom.editor.value).html;
       return;
     }
+
+    var reader = kind === 'xml' ? bookFor(dom.editor.value) : null;
+    updateDataBar(!!reader);
+
+    if (reader && book.mode === 'book') {
+      dom.dataView.replaceChildren(reader.node);
+      var count = reader.model.reading.length;
+      setDataStatus(reader.model.title + ' · ' + count +
+        (count === 1 ? ' section' : ' sections'), false);
+      return;
+    }
+
     var result = Structured.render(kind, dom.editor.value);
     dom.dataView.replaceChildren(result.node);
     setDataStatus(result.error || result.summary, !!result.error);
+  }
+
+  /** The book toggle only exists for documents that are one, and Expand and
+      Collapse only mean something in the tree. */
+  function updateDataBar(hasBook) {
+    var modeButton = dom.dataBar.querySelector('[data-data-cmd="mode"]');
+    var reading = hasBook && book.mode === 'book';
+    if (modeButton) {
+      modeButton.hidden = !hasBook;
+      modeButton.textContent = reading ? 'Tree' : 'Contents';
+    }
+    ['expand', 'collapse'].forEach(function (name) {
+      var node = dom.dataBar.querySelector('[data-data-cmd="' + name + '"]');
+      if (node) node.hidden = reading;
+    });
   }
 
   function setDataStatus(text, isError) {
@@ -967,6 +1013,13 @@
     var button = event.target.closest('button[data-data-cmd]');
     if (!button || !current) return;
     var action = button.dataset.dataCmd;
+
+    if (action === 'mode') {
+      book.mode = book.mode === 'book' ? 'tree' : 'book';
+      if (!showingPreview) setPreview(true);
+      else paintPreview();
+      return;
+    }
 
     if (action === 'expand' || action === 'collapse') {
       if (!showingPreview) setPreview(true);

@@ -15,6 +15,7 @@
   <link rel="icon" href="icons/icon192.png">
   <link rel="stylesheet" href="lib/markdown.css">
   <link rel="stylesheet" href="lib/structured.css">
+  <link rel="stylesheet" href="lib/book.css">
   <link rel="stylesheet" href="app.css">
 </head>
 <body>
@@ -70,6 +71,7 @@
 
   <nav id="data-bar" class="format-bar data-bar" aria-label="Data actions" hidden>
     <span id="data-status" class="data-status"></span>
+    <button type="button" data-data-cmd="mode" title="Switch between the book and the raw tree" hidden>Tree</button>
     <button type="button" data-data-cmd="format" title="Tidy the indentation">Format</button>
     <button type="button" data-data-cmd="minify" title="Strip whitespace">Minify</button>
     <button type="button" data-data-cmd="expand" title="Expand every node">Expand</button>
@@ -114,6 +116,7 @@
 
 <script src="lib/markdown.js"></script>
 <script src="lib/structured.js"></script>
+<script src="lib/book.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -17,6 +17,9 @@ For the phone app, see the [repository README](../README.md).
 - `.json` and `.xml` files (and `.geojson`, `.svg`, `.rss`, `.atom`, `.plist`…)
   render as a collapsible tree with Expand all / Collapse all, a validity
   verdict, and the raw source one keypress away.
+- XML that is really a book or a feed — a WordPress/Pressbooks export, RSS, Atom —
+  opens as a table of contents you can navigate, with Previous/Next and the raw
+  tree still a click away.
 - Outline sidebar that tracks the section you are reading, source/rendered toggle
   (`v`), copy source (`c` via the button), and one keypress into the editor (`e`).
 

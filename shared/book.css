@@ -1,0 +1,122 @@
+/* The book reader: a table of contents, and a page view for one section. */
+
+.bk {
+  --bk-fg: #1f2328;
+  --bk-muted: #59636e;
+  --bk-border: #d1d9e0;
+  --bk-accent: #0969da;
+  --bk-inset: #f6f8fa;
+  color: var(--bk-fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  .bk {
+    --bk-fg: #e6edf3;
+    --bk-muted: #9198a1;
+    --bk-border: #30363d;
+    --bk-accent: #4493f8;
+    --bk-inset: #161b22;
+  }
+}
+
+.bk-head { margin-bottom: 18px; }
+
+.bk-title {
+  margin: 0 0 4px;
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.bk-byline { margin: 0 0 2px; color: var(--bk-muted); font-size: 14px; }
+.bk-count { margin: 0 0 12px; color: var(--bk-muted); font-size: 12px; }
+
+.bk-filter {
+  width: 100%;
+  padding: 9px 12px;
+  color: inherit;
+  background: var(--bk-inset);
+  border: 1px solid var(--bk-border);
+  border-radius: 9px;
+  outline: none;
+  font: inherit;
+  font-size: 15px;
+  -webkit-appearance: none;
+}
+
+.bk-filter:focus { border-color: var(--bk-accent); }
+
+.bk-section + .bk-section { margin-top: 22px; }
+
+.bk-section-title {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bk-muted);
+}
+
+.bk-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 11px 10px;
+  text-align: left;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--bk-border);
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.bk-entry:hover, .bk-entry:active { background: var(--bk-inset); }
+.bk-entry-title { font-size: 16px; line-height: 1.35; }
+.bk-entry-meta { color: var(--bk-muted); font-size: 12px; }
+
+.bk-empty { margin: 16px 2px; color: var(--bk-muted); font-style: italic; }
+
+/* ------------------------------------------------------------------- page */
+
+.bk-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--bk-border);
+}
+
+.bk-bar-bottom {
+  margin-top: 28px;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--bk-border);
+  border-bottom: 0;
+}
+
+.bk-bar button {
+  padding: 8px 14px;
+  color: var(--bk-accent);
+  background: var(--bk-inset);
+  border: 1px solid var(--bk-border);
+  border-radius: 9px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+}
+
+.bk-bar button:disabled { color: var(--bk-muted); opacity: 0.5; cursor: default; }
+.bk-back::before { content: "‹ "; }
+.bk-next::after { content: " ›"; }
+.bk-prev::before { content: "‹ "; }
+.bk-bar-bottom .bk-next { margin-left: auto; }
+.bk-where { margin-left: auto; color: var(--bk-muted); font-size: 12px; }
+
+.bk-page-title { margin: 18px 0 4px; font-size: 24px; line-height: 1.2; }
+.bk-page-meta { margin: 0 0 18px; color: var(--bk-muted); font-size: 13px; }
+
+/* The prose itself is styled by .md-body, which .bk-body carries. */
+.bk-body img { height: auto; }
+.bk-body table { display: block; overflow-x: auto; }

@@ -64,10 +64,18 @@
   var article = el('article', { className: isData ? 'mds-article' : 'md-body mds-article' });
   var rendered = null;
   var structured = null;
+  var reader = null;
 
   if (isData) {
     structured = Structured.render(kind, source);
-    article.appendChild(structured.node);
+    // An RSS, Atom or WordPress/Pressbooks export is a book or a feed, and a
+    // tree of thousands of elements is no way to read one.
+    if (kind === 'xml' && !structured.error) {
+      var parsed = Structured.parseXml(source);
+      var model = parsed.error ? null : Book.parse(parsed.doc);
+      if (model) reader = Book.create(model);
+    }
+    article.appendChild(reader ? reader.node : structured.node);
   } else {
     rendered = MD.render(source);
     article.innerHTML = rendered.html;
@@ -81,15 +89,35 @@
   var side = el('aside', { className: 'mds-side' });
 
   if (isData) {
-    side.appendChild(el('p', { className: 'mds-side-title', textContent: Structured.label(kind) }));
+    side.appendChild(el('p', {
+      className: 'mds-side-title',
+      textContent: reader ? 'Book' : Structured.label(kind)
+    }));
     side.appendChild(el('p', {
       className: structured.error ? 'mds-side-error' : 'mds-side-note',
-      textContent: structured.error || structured.summary
+      textContent: reader
+        ? reader.model.reading.length + ' sections · ' + structured.summary
+        : (structured.error || structured.summary)
     }));
-    side.appendChild(el('div', { className: 'mds-side-actions' }, [
-      button('Expand all', 'Open every node', function () { Structured.expandAll(article, true); }),
-      button('Collapse all', 'Close every node', function () { Structured.expandAll(article, false); })
-    ]));
+
+    var actions = [];
+    if (reader) {
+      var showingBook = true;
+      var swap = button('Raw tree', 'Switch between the book and the element tree', function () {
+        showingBook = !showingBook;
+        article.replaceChildren(showingBook ? reader.node : structured.node);
+        swap.textContent = showingBook ? 'Raw tree' : 'Contents';
+      });
+      actions.push(swap);
+      actions.push(button('Contents', 'Back to the table of contents', function () {
+        if (!showingBook) swap.click();
+        reader.showContents();
+      }));
+    } else {
+      actions.push(button('Expand all', 'Open every node', function () { Structured.expandAll(article, true); }));
+      actions.push(button('Collapse all', 'Close every node', function () { Structured.expandAll(article, false); }));
+    }
+    side.appendChild(el('div', { className: 'mds-side-actions' }, actions));
   } else {
     side.appendChild(el('p', { className: 'mds-side-title', textContent: 'Outline' }));
     var outline = el('nav', { className: 'mds-outline' });
@@ -144,7 +172,9 @@
   var metaText;
   if (isData) {
     var lines = source.split('\n').length;
-    metaText = lines.toLocaleString() + (lines === 1 ? ' line' : ' lines') + ' - ' + structured.summary;
+    metaText = reader
+      ? reader.model.title + ' - ' + reader.model.reading.length + ' sections'
+      : lines.toLocaleString() + (lines === 1 ? ' line' : ' lines') + ' - ' + structured.summary;
   } else {
     var words = source.trim() ? source.trim().split(/\s+/).length : 0;
     metaText = words.toLocaleString() + ' words - ' + Math.max(1, Math.round(words / 220)) + ' min read';

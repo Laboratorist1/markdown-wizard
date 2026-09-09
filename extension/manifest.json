@@ -51,11 +51,13 @@
       "js": [
         "src/lib/markdown.js",
         "src/lib/structured.js",
+        "src/lib/book.js",
         "src/viewer/viewer.js"
       ],
       "css": [
         "src/lib/markdown.css",
         "src/lib/structured.css",
+        "src/lib/book.css",
         "src/viewer/viewer.css"
       ],
       "run_at": "document_idle"

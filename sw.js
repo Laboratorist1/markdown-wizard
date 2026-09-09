@@ -2,7 +2,7 @@
  * Offline shell. The app must open with no network at all: the documents live
  * on the device, so needing a connection to read them would be absurd.
  */
-const CACHE = 'markdown-wizard-v2';
+const CACHE = 'markdown-wizard-v3';
 const SHELL = [
   './',
   './index.html',
@@ -12,6 +12,8 @@ const SHELL = [
   './lib/markdown.css',
   './lib/structured.js',
   './lib/structured.css',
+  './lib/book.js',
+  './lib/book.css',
   './manifest.webmanifest',
   './icons/icon192.png',
   './icons/icon512.png'
