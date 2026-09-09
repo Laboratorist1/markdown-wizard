@@ -82,9 +82,20 @@ catalogue first — by name, ignoring the `-300x200` suffix WordPress adds to
 generated sizes — and only then resolved as a URL, against the book's own
 address (`wp:base_blog_url`, or the chapter's own `<link>`). An image borrowed
 from another site is left exactly as written. `http://` image URLs are lifted to
-`https://`, since a page served over https silently refuses them otherwise. An image that still cannot be fetched — you are
-offline, or the site has moved — becomes a small note naming it, which you can
-tap to open the image directly.
+`https://`, since a page served over https silently refuses them otherwise.
+
+If an image 404s anyway, the same file is looked for where a re-platformed site
+would keep it. WordPress sites move their uploads: an export from 2017 can name
+`/<subsite>/wp-content/uploads/…` while the site today serves `/app/uploads/…`,
+so every URL in the file is stale although the images are all still online.
+Bedrock's layout (which Pressbooks moved to) and plain multisite's network root
+are both tried, each only after the previous fails.
+
+An image that still cannot be fetched — you are offline, or it is genuinely
+gone — becomes a small note naming it, which you can tap to open the address
+the file asked for. A book's ⋯ menu also offers **Copy image report**: what each
+picture asks for and what it was turned into, which is what a missing figure
+needs for diagnosis.
 
 This is the one thing in the app that reaches out to the network; everything
 else stays on the device.
