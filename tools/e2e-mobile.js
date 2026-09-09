@@ -443,9 +443,38 @@ async function main() {
   check('counts the words in a section', bookUnit.firstWords > 5, true);
   check('sanitising drops scripts and frames', bookUnit.scripts, 0);
   check('sanitising drops event handlers', bookUnit.handlers, false);
-  check('sanitising drops javascript: links', bookUnit.links, ['https://ok.example']);
+  check('sanitising drops javascript: links', bookUnit.links, ['https://ok.example/']);
   check('sanitising drops javascript: images', bookUnit.images, ['https://ok.example/a.png']);
   check('sanitising keeps the words of unknown tags', bookUnit.keptText, true);
+
+  const urls = await page.evaluate((xml) => {
+    const model = Book.parse(Structured.parseXml(xml).doc);
+    const chapter = model.reading.find((e) => e.title === 'What Is a Link?');
+    const host = document.createElement('div');
+    host.appendChild(Book.sanitize(chapter.html, model.baseUrl));
+    return {
+      base: model.baseUrl,
+      images: Array.from(host.querySelectorAll('img')).map((i) => i.getAttribute('src')),
+      // The same content with no base URL to resolve against.
+      unbased: (() => {
+        const bare = document.createElement('div');
+        bare.appendChild(Book.sanitize('<img src="/a/b.png" alt="x">', ''));
+        return bare.querySelector('img').getAttribute('src');
+      })()
+    };
+  }, bookXml);
+
+  check('the book knows where it came from', urls.base, 'https://example.edu/sample');
+  check('chapter images are resolved against the book\'s own site, not this app',
+    urls.images, [
+      'https://example.edu/img/link.png',
+      'https://example.edu/wp-content/uploads/2017/03/root-relative.png',
+      'https://example.edu/sample/images/chapter-relative.png',
+      'http://example.edu/img/insecure.png'
+    ]);
+  check('without a base URL an image still resolves against the page',
+    urls.unbased.endsWith('/a/b.png'), true);
+
   check('outbound links are made safe', bookUnit.linkTarget, 'noopener noreferrer');
 
   await importFile(page, 'A Sample Open Textbook.xml', bookXml);
@@ -474,6 +503,23 @@ async function main() {
     await page.textContent('.bk-page-title'), 'What Is a Link?');
   check('the chapter HTML is rendered, not escaped',
     await page.$$eval('.bk-body h2, .bk-body blockquote, .bk-body table', (n) => n.length), 3);
+  check('a chapter resolves its images against its own address',
+    await page.$$eval('.bk-body img, .bk-image-missing', (n) => n.map(
+      (i) => i.getAttribute('src') || i.title)),
+    [
+      'https://example.edu/img/link.png',
+      'https://example.edu/wp-content/uploads/2017/03/root-relative.png',
+      'https://example.edu/sample/chapter/what-is-a-link/images/chapter-relative.png',
+      'http://example.edu/img/insecure.png'
+    ]);
+  // Failing is asynchronous: the fetch has to be attempted first.
+  await page.waitForFunction(
+    () => document.querySelectorAll('a.bk-image-missing').length > 0, null, { timeout: 10000 });
+  // Which one fails first is not ours to decide, so check the set, not an order.
+  check('a missing image becomes a note you can tap to open',
+    await page.$$eval('a.bk-image-missing', (n) => n
+      .map((a) => a.getAttribute('href'))
+      .every((href) => href.indexOf('example.edu') !== -1)), true);
   check('where you are in the book is shown', await page.textContent('.bk-where'), '2 of 5');
 
   await page.click('.bk-next');

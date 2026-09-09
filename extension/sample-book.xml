@@ -10,6 +10,8 @@
   <link>https://example.edu/sample</link>
   <description>Open Textbook</description>
   <wp:wxr_version>1.2</wp:wxr_version>
+  <wp:base_site_url>https://example.edu</wp:base_site_url>
+  <wp:base_blog_url>https://example.edu/sample</wp:base_blog_url>
   <item>
     <title>A Sample Open Textbook</title>
     <dc:creator><![CDATA[R. Author]]></dc:creator>
@@ -49,6 +51,9 @@
     <content:encoded><![CDATA[<h2>Definitions</h2><p>A link joins two things.</p>
 <blockquote><p>Quoted wisdom.</p></blockquote>
 <img src="https://example.edu/img/link.png" alt="A chain link">
+<p><img src="/wp-content/uploads/2017/03/root-relative.png" alt="Root relative"></p>
+<p><img src="images/chapter-relative.png" alt="Chapter relative"></p>
+<p><img src="http://example.edu/img/insecure.png" alt="Served over http"></p>
 <table><tr><th>Kind</th><td>Hyper</td></tr></table>]]></content:encoded>
     <wp:post_id>21</wp:post_id>
     <wp:post_type>chapter</wp:post_type>

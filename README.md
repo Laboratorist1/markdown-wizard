@@ -75,9 +75,16 @@ rebuilt node by node against an allowlist: scripts, frames, embedded objects,
 event handlers and `javascript:` URLs never survive, and anything unrecognised
 is unwrapped so its words are kept. There are tests that assert exactly that.
 
-One caveat: chapter images point at the site the book came from, so opening a
-chapter that has them will fetch them over the network. Everything else in the
-app stays on the device.
+**Images.** Chapter images are written relative to the site the book was
+exported from, so they are resolved against that address — the export declares
+it in `wp:base_blog_url`, and a chapter's own `<link>` is used where it has one.
+`http://` image URLs are lifted to `https://`, since a page served over https
+silently refuses them otherwise. An image that still cannot be fetched — you are
+offline, or the site has moved — becomes a small note naming it, which you can
+tap to open the image directly.
+
+This is the one thing in the app that reaches out to the network; everything
+else stays on the device.
 
 JSON validity is checked by walking the grammar rather than reading the
 browser's error message, because those messages carry a position for some

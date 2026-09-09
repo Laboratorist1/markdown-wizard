@@ -120,3 +120,33 @@
 /* The prose itself is styled by .md-body, which .bk-body carries. */
 .bk-body img { height: auto; }
 .bk-body table { display: block; overflow-x: auto; }
+
+/* An image's alt text must not inherit the size of whatever wraps it - some
+   exports put images inside headings - and a fetch that fails should read as a
+   quiet note rather than a broken icon. */
+.bk-body img {
+  max-width: 100%;
+  height: auto;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--bk-muted);
+}
+
+.bk-image-missing {
+  display: inline-block;
+  padding: 2px 8px;
+  color: var(--bk-muted);
+  background: var(--bk-inset);
+  border: 1px dashed var(--bk-border);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  font-style: italic;
+}
+
+.bk-image-missing::before { content: "image: "; opacity: 0.7; }
+
+a.bk-image-missing { text-decoration: none; }
+a.bk-image-missing:hover, a.bk-image-missing:active { border-style: solid; color: var(--bk-accent); }
