@@ -9,6 +9,7 @@
   'use strict';
 
   var MD_EXT = /\.(md|markdown|mdown|mkd|mdx|txt)$/i;
+  var OPEN_EXT = /\.(md|markdown|mdown|mkd|mdx|txt|json|jsonc|geojson|webmanifest|xml|svg|xsd|xsl|xslt|rss|atom|plist)$/i;
   var SKIP_DIRS = /^(node_modules|dist|build|out|target|vendor|__pycache__|\.git|\.next|\.venv)$/;
   var MAX_SCAN_DEPTH = 6;
   var MAX_SCAN_FILES = 2000;
@@ -58,6 +59,7 @@
     savedText: '',
     lastModified: 0,
     workspace: null,
+    kind: 'markdown',
     files: [],
     prefs: null,
     suppressScrollSync: false,
@@ -125,11 +127,40 @@
   /* -------------------------------------------------------------- preview */
 
   var renderPreview = debounce(function () {
-    var result = MD.render(dom.editor.value);
-    dom.preview.innerHTML = result.html;
-    renderOutline(result.headings);
+    if (state.kind === 'markdown') {
+      var result = MD.render(dom.editor.value);
+      dom.preview.className = 'md-body';
+      dom.preview.innerHTML = result.html;
+      renderOutline(result.headings);
+    } else {
+      var data = Structured.render(state.kind, dom.editor.value);
+      dom.preview.className = 'st-host';
+      dom.preview.replaceChildren(data.node);
+      renderDataPanel(data);
+    }
     updateCounts();
   }, 110);
+
+  /** For JSON and XML the outline panel becomes a verdict plus the two controls
+      that actually help with a big document. */
+  function renderDataPanel(data) {
+    dom.outline.textContent = '';
+    var verdict = document.createElement('p');
+    verdict.className = data.error ? 'empty is-error' : 'empty';
+    verdict.textContent = data.error || data.summary;
+    dom.outline.appendChild(verdict);
+
+    [['Expand all', true], ['Collapse all', false]].forEach(function (pair) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'outline-item';
+      button.textContent = pair[0];
+      button.addEventListener('click', function () {
+        Structured.expandAll(dom.preview, pair[1]);
+      });
+      dom.outline.appendChild(button);
+    });
+  }
 
   function renderOutline(headings) {
     dom.outline.textContent = '';
@@ -176,7 +207,16 @@
 
   function updateCounts() {
     var text = dom.editor.value;
+    if (state.kind !== 'markdown') {
+      var data = Structured.render(state.kind, text);
+      var lines = text.split('\n').length;
+      dom.statusCounts.textContent = lines.toLocaleString() +
+        (lines === 1 ? ' line - ' : ' lines - ') + (data.error || data.summary);
+      dom.statusCounts.classList.toggle('is-error', !!data.error);
+      return;
+    }
     var words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    dom.statusCounts.classList.remove('is-error');
     dom.statusCounts.textContent = words.toLocaleString() + ' words - ' +
       text.length.toLocaleString() + ' chars - ' +
       Math.max(1, Math.round(words / 220)) + ' min read';
@@ -210,6 +250,8 @@
     state.path = meta.path || '';
     state.savedText = meta.unsaved ? NEVER_SAVED : text;
     state.lastModified = meta.lastModified || 0;
+    state.kind = Structured.detect(state.name, text);
+    dom.body.dataset.kind = state.kind;
 
     dom.editor.value = text;
     dom.editor.scrollTop = 0;
@@ -263,7 +305,12 @@
       multiple: false,
       types: [{
         description: 'Markdown',
-        accept: { 'text/markdown': ['.md', '.markdown', '.mdown', '.mkd', '.mdx'], 'text/plain': ['.txt'] }
+        accept: {
+          'text/markdown': ['.md', '.markdown', '.mdown', '.mkd', '.mdx'],
+          'application/json': ['.json', '.geojson', '.webmanifest'],
+          'application/xml': ['.xml', '.svg', '.rss', '.atom', '.plist'],
+          'text/plain': ['.txt']
+        }
       }]
     }).then(function (handles) {
       return openFileHandle(handles[0], null);
@@ -328,7 +375,7 @@
       if (entry.kind === 'directory') {
         if (SKIP_DIRS.test(entry.name) || entry.name.startsWith('.')) continue;
         subdirs.push({ handle: entry, path: prefix + entry.name + '/' });
-      } else if (MD_EXT.test(entry.name)) {
+      } else if (OPEN_EXT.test(entry.name)) {
         out.push({ name: entry.name, path: prefix + entry.name, handle: entry });
       }
     }
@@ -453,7 +500,14 @@
     var text = dom.editor.value;
     return window.showSaveFilePicker({
       suggestedName: state.name || 'untitled.md',
-      types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md', '.markdown', '.mdx'] } }]
+      types: [{
+        description: Structured.label(state.kind),
+        accept: (function () {
+          var accept = {};
+          accept[Structured.mimeFor(state.kind)] = [Structured.extensionFor(state.kind)];
+          return accept;
+        })()
+      }]
     }).then(function (handle) {
       return writeFile(handle, text).then(function () {
         return handle.getFile().then(function (file) {
@@ -812,6 +866,27 @@
       .catch(ignoreAbort);
   }
 
+  /** Tidy or compact the open JSON or XML document, in place. */
+  function formatData(minify) {
+    if (state.kind === 'markdown') {
+      toast('That is a Markdown document.', true);
+      return;
+    }
+    try {
+      var next = minify
+        ? Structured.minifyJson(dom.editor.value)
+        : Structured.format(state.kind, dom.editor.value);
+      if (next === dom.editor.value) {
+        toast('Already tidy');
+        return;
+      }
+      applyEdit(0, dom.editor.value.length, next, 0, 0);
+      toast(minify ? 'Minified' : 'Formatted');
+    } catch (error) {
+      toast('Cannot format: ' + error.message, true);
+    }
+  }
+
   function showShortcuts() {
     var existing = document.querySelector('dialog.help-dialog');
     if (existing) { existing.showModal(); return; }
@@ -884,7 +959,7 @@
 
   dom.editor.addEventListener('keydown', function (event) {
     if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
-      if (handleEnter(event)) return;
+      if (state.kind === 'markdown' && handleEnter(event)) return;
     }
     if (event.key === 'Tab') handleTab(event);
   });
@@ -924,7 +999,9 @@
     if (!button) return;
     dom.menu.hidden = true;
     var action = button.dataset.action;
-    if (action === 'save-as') saveDocumentAs();
+    if (action === 'format-data') formatData(false);
+    else if (action === 'minify-data') formatData(true);
+    else if (action === 'save-as') saveDocumentAs();
     else if (action === 'new-file') newFile();
     else if (action === 'quick-open') openPalette();
     else if (action === 'toggle-autosave') setAutosave(!(state.prefs && state.prefs.autosave));

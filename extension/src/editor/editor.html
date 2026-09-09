@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <title>Markdown Wizard</title>
   <link rel="stylesheet" href="../lib/markdown.css">
+  <link rel="stylesheet" href="../lib/structured.css">
   <link rel="stylesheet" href="editor.css">
 </head>
 <body data-view="split">
@@ -28,6 +29,9 @@
       <button type="button" id="btn-save" class="btn btn-primary" title="Save to disk (Ctrl+S)">Save</button>
       <button type="button" id="btn-menu" class="btn btn-icon" title="More actions" aria-haspopup="true">⋯</button>
       <div id="menu" class="menu" hidden>
+        <button type="button" data-action="format-data">Format JSON/XML</button>
+        <button type="button" data-action="minify-data">Minify JSON</button>
+        <hr>
         <button type="button" data-action="save-as">Save as…</button>
         <button type="button" data-action="new-file">New file</button>
         <button type="button" data-action="quick-open">Go to file… <kbd>Ctrl+P</kbd></button>
@@ -130,6 +134,7 @@
   <div id="toast" class="toast" hidden></div>
 
   <script src="../lib/markdown.js"></script>
+  <script src="../lib/structured.js"></script>
   <script src="../lib/store.js"></script>
   <script src="editor.js"></script>
 </body>

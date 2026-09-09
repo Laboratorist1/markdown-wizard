@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Markdown Wizard",
-  "version": "1.0.0",
-  "description": "Read and edit .md files straight from disk: rendered preview, live editor, folder workspace, save back to the original file.",
+  "version": "1.1.0",
+  "description": "Read and edit Markdown, JSON and XML files straight from disk: rendered preview, collapsible data trees, live editor, folder workspace.",
   "minimum_chrome_version": "116",
   "icons": {
     "16": "icons/icon16.png",
@@ -38,16 +38,35 @@
         "*://*/*.markdown",
         "*://*/*.mdown",
         "*://*/*.mkd",
-        "*://*/*.mdx"
+        "*://*/*.mdx",
+        "*://*/*.json",
+        "*://*/*.geojson",
+        "*://*/*.webmanifest",
+        "*://*/*.xml",
+        "*://*/*.svg",
+        "*://*/*.rss",
+        "*://*/*.atom",
+        "*://*/*.plist"
       ],
-      "js": ["src/lib/markdown.js", "src/viewer/viewer.js"],
-      "css": ["src/lib/markdown.css", "src/viewer/viewer.css"],
+      "js": [
+        "src/lib/markdown.js",
+        "src/lib/structured.js",
+        "src/viewer/viewer.js"
+      ],
+      "css": [
+        "src/lib/markdown.css",
+        "src/lib/structured.css",
+        "src/viewer/viewer.css"
+      ],
       "run_at": "document_idle"
     }
   ],
   "commands": {
     "open-editor": {
-      "suggested_key": { "default": "Ctrl+Shift+M", "mac": "Command+Shift+M" },
+      "suggested_key": {
+        "default": "Ctrl+Shift+M",
+        "mac": "Command+Shift+M"
+      },
       "description": "Open the Markdown editor"
     }
   }

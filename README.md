@@ -1,14 +1,14 @@
 # Markdown Wizard
 
-Read and edit Markdown files — **on your phone** as an installable app, and **on
-the desktop** as a Chrome extension that edits files straight from disk.
+Read and edit **Markdown, JSON and XML** — on your phone as an installable app,
+and on the desktop as a Chrome extension that edits files straight from disk.
 
 No accounts, no servers, no network. Your documents stay on your device.
 
 <p>
   <img src="docs/library.png" alt="Document list on a phone" width="220">
-  <img src="docs/editor.png" alt="Editor on a phone" width="220">
-  <img src="docs/preview.png" alt="Rendered preview on a phone" width="220">
+  <img src="docs/json.png" alt="JSON tree on a phone" width="220">
+  <img src="docs/xml.png" alt="XML tree on a phone" width="220">
 </p>
 
 ---
@@ -32,10 +32,30 @@ That is the whole install; nothing else runs anywhere.
 
 ### Using it
 
-- **+** new document · **↧** import `.md` files from Files, Drive or Downloads
+- **+** new document · **↧** import `.md`, `.json` or `.xml` files from Files,
+  Drive or Downloads
 - Autosaves about a second after you stop typing, and when you background the app
 - **◨** rendered preview · **⋯** rename, share, copy, duplicate, info, delete
 - `Enter` continues lists and task lists; the format bar sits above the keyboard
+
+### Three kinds of document
+
+The app picks the right view from the file's extension, falling back to reading
+the content when a name says nothing.
+
+| | Markdown | JSON | XML |
+|---|---|---|---|
+| Preview | rendered prose | collapsible tree | collapsible tree |
+| Toolbar | headings, bold, lists… | Format, Minify, Expand, Collapse | Format, Expand, Collapse |
+| While typing | — | tells you it is valid, or **the exact line and column that broke** | tells you it is well-formed |
+
+Creating a document whose name ends in `.json` or `.xml` starts it in that
+format; anything else is Markdown. Sharing exports with the right extension.
+
+JSON validity is checked by walking the grammar rather than reading the
+browser's error message, because those messages carry a position for some
+mistakes and quote the document back at you for others. So a stray comma is
+always reported as a line and column you can go to.
 
 ### One document, one copy
 
@@ -73,8 +93,10 @@ anything you would miss.
 
 Then `Ctrl+Shift+M` opens the editor. It opens a single file or a whole folder,
 `Ctrl+S` writes back to the original file, `Ctrl+P` jumps between files in the
-folder, and any `.md` you open in a tab renders as a formatted document with an
-outline. Full details in [extension/README.md](extension/README.md).
+folder, and any `.md`, `.json` or `.xml` you open in a tab renders as a formatted
+document — prose with an outline, or a collapsible tree with Expand and Collapse.
+The ⋯ menu formats and minifies data files in place. Full details in
+[extension/README.md](extension/README.md).
 
 Chrome 116+. The File System Access API it relies on is desktop-only, which is
 why the phone gets its own app rather than the same extension.
@@ -91,7 +113,7 @@ markdown-wizard/
 ├── lib/ icons/                                            #   root so Pages
 │                                                          #   serves /<repo>/
 ├── extension/          # the Chrome extension, self-contained so it zips
-├── shared/             # the Markdown renderer, copied into both apps
+├── shared/             # the renderers (Markdown, JSON, XML), copied into both
 ├── docs/               # screenshots
 └── tools/
     ├── e2e-mobile.js       # Playwright checks, phone-emulated
@@ -100,9 +122,11 @@ markdown-wizard/
     └── make_icons.py       # regenerate every icon, no dependencies
 ```
 
-The renderer (`shared/markdown.js`) is written from scratch and bundled rather
-than fetched — Manifest V3 forbids remote code — and it escapes any HTML inside
-a document instead of executing it, so opening a file you did not write is safe.
+The renderers (`shared/markdown.js`, `shared/structured.js`) are written from
+scratch and bundled rather than fetched — Manifest V3 forbids remote code. The
+Markdown renderer escapes any HTML inside a document instead of executing it,
+and the JSON and XML viewers build real DOM nodes rather than markup, so opening
+a file you did not write cannot run anything.
 
 ## Development
 
@@ -117,7 +141,10 @@ import and delete — the "one copy" promise is the thing under test — and che
 that a `/<repo>/` deployment boots, registers its service worker and opens
 offline. The extension suite loads the unpacked extension into Chromium and
 covers rendering, the editing commands, the viewer and the real read/write file
-paths. Both fail if a copy of the renderer drifts from `shared/`.
+paths, including XML served as `application/xml`, where Chrome's own viewer runs
+and the source has to be recovered from it. Both suites check the JSON and XML
+renderers against valid, invalid and awkward-but-legal documents, and both fail
+if a copy of a renderer drifts from `shared/`.
 
 ## License
 

@@ -1,0 +1,144 @@
+/* Tree view for JSON and XML. Scoped to .st-tree so it never touches a host
+   page, and themed with the same tokens as the Markdown styles. */
+
+.st-tree {
+  --st-fg: #1f2328;
+  --st-muted: #59636e;
+  --st-border: #d1d9e0;
+  --st-key: #0550ae;
+  --st-string: #0a7d33;
+  --st-number: #953800;
+  --st-boolean: #8250df;
+  --st-null: #59636e;
+  --st-tag: #0550ae;
+  --st-attr: #953800;
+  --st-error: #cf222e;
+  --st-error-bg: #fff0ef;
+  color: var(--st-fg);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  line-height: 1.65;
+  overflow-x: auto;
+}
+
+@media (prefers-color-scheme: dark) {
+  .st-tree {
+    --st-fg: #e6edf3;
+    --st-muted: #9198a1;
+    --st-border: #30363d;
+    --st-key: #79c0ff;
+    --st-string: #7ee787;
+    --st-number: #ffa657;
+    --st-boolean: #d2a8ff;
+    --st-null: #9198a1;
+    --st-tag: #79c0ff;
+    --st-attr: #ffa657;
+    --st-error: #f85149;
+    --st-error-bg: #2b1213;
+  }
+}
+
+.st-tree[data-theme="light"] {
+  --st-fg: #1f2328;
+  --st-muted: #59636e;
+  --st-border: #d1d9e0;
+  --st-key: #0550ae;
+  --st-string: #0a7d33;
+  --st-number: #953800;
+  --st-boolean: #8250df;
+  --st-null: #59636e;
+  --st-tag: #0550ae;
+  --st-attr: #953800;
+  --st-error: #cf222e;
+  --st-error-bg: #fff0ef;
+}
+
+.st-tree[data-theme="dark"] {
+  --st-fg: #e6edf3;
+  --st-muted: #9198a1;
+  --st-border: #30363d;
+  --st-key: #79c0ff;
+  --st-string: #7ee787;
+  --st-number: #ffa657;
+  --st-boolean: #d2a8ff;
+  --st-null: #9198a1;
+  --st-tag: #79c0ff;
+  --st-attr: #ffa657;
+  --st-error: #f85149;
+  --st-error-bg: #2b1213;
+}
+
+.st-tree .st-children {
+  margin-left: 6px;
+  padding-left: 12px;
+  border-left: 1px solid var(--st-border);
+}
+
+.st-tree .st-row,
+.st-tree .st-leaf { white-space: pre-wrap; word-break: break-word; }
+
+.st-tree summary {
+  cursor: pointer;
+  list-style: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.st-tree summary::-webkit-details-marker { display: none; }
+
+/* A disclosure triangle that stays put whatever the row contains. */
+.st-tree summary::before {
+  content: "▸";
+  display: inline-block;
+  width: 1em;
+  margin-left: -1em;
+  color: var(--st-muted);
+  transition: transform 120ms ease;
+}
+
+.st-tree details[open] > summary::before { transform: rotate(90deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .st-tree summary::before { transition: none; }
+}
+
+.st-tree details { padding-left: 1em; }
+.st-tree > details { padding-left: 1em; }
+
+.st-key { color: var(--st-key); }
+.st-index { color: var(--st-muted); }
+.st-string { color: var(--st-string); }
+.st-number { color: var(--st-number); }
+.st-boolean { color: var(--st-boolean); }
+.st-null { color: var(--st-null); font-style: italic; }
+.st-punct { color: var(--st-muted); }
+.st-tag { color: var(--st-tag); }
+.st-attr { color: var(--st-attr); }
+.st-text { color: var(--st-fg); }
+.st-comment { color: var(--st-muted); font-style: italic; }
+.st-muted { color: var(--st-muted); }
+
+.st-count {
+  margin: 0 6px;
+  padding: 0 6px;
+  color: var(--st-muted);
+  font-size: 0.85em;
+  border: 1px solid var(--st-border);
+  border-radius: 999px;
+}
+
+.st-error {
+  padding: 12px 14px;
+  color: var(--st-error);
+  background: var(--st-error-bg);
+  border: 1px solid currentColor;
+  border-radius: 8px;
+}
+
+.st-error-detail {
+  margin: 8px 0 0;
+  color: var(--st-fg);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

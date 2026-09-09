@@ -157,3 +157,8 @@ html.mds-active body {
   .mds-main { grid-template-columns: minmax(0, 1fr); padding: 20px 16px 64px; }
   .mds-side { display: none; }
 }
+
+.mds-side-note { margin: 0 0 10px; color: var(--mds-muted); }
+.mds-side-error { margin: 0 0 10px; color: #cf222e; }
+.mds-side-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.mds-side-actions .mds-btn { flex: 1; }

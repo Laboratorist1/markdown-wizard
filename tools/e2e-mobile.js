@@ -72,6 +72,14 @@ async function importFile(page, name, contents) {
   });
 }
 
+async function openDoc(page, name) {
+  await page.click(`.doc-item:has-text("${name}") .doc-open`);
+  await page.waitForSelector('#screen-editor:not([hidden])');
+  await page.waitForFunction(
+    (wanted) => document.getElementById('editor-title').textContent.indexOf(wanted) !== -1,
+    name);
+}
+
 async function main() {
   // Both apps ship a copy of the shared renderer; drift means they would
   // silently render the same document differently.
@@ -211,8 +219,7 @@ async function main() {
   check('search filters the list', await docCount(page), 1);
   await page.fill('#search', '');
 
-  await page.click('.doc-item:has-text("Packing") .doc-open');
-  await page.waitForSelector('#screen-editor:not([hidden])');
+  await openDoc(page, 'Packing');
 
   await page.click('#btn-view');
   check('preview renders the document', await page.textContent('#preview h1'), 'Packing');
@@ -247,6 +254,129 @@ async function main() {
   check('documents are readable offline',
     await page.$$eval('.doc-name', (n) => n.length), 3);
   await context.setOffline(false);
+
+  /* ------------------------------------------------- JSON and XML views */
+
+  const unit = await page.evaluate(() => {
+    const sample = '{"a":[1,2,{"b":null}],"c":"x"}';
+    return {
+      detectByName: Structured.detect('data.json', ''),
+      detectXmlByName: Structured.detect('feed.xml', ''),
+      detectByContent: Structured.detect('nameless', sample),
+      detectXmlByContent: Structured.detect('nameless', '<?xml version="1.0"?><a><b/></a>'),
+      detectMarkdown: Structured.detect('notes.md', '# hi'),
+      formatted: Structured.format('json', sample),
+      minified: Structured.minifyJson('{\n  "a": 1\n}'),
+      xmlFormatted: Structured.format('xml', '<a><b x="1">t</b><c/></a>'),
+      validSummary: Structured.render('json', sample).summary,
+      invalidSummary: Structured.render('json', '{"a":}').summary,
+      invalidMessage: Structured.render('json', '{\n  "a": ,\n}').error,
+      invalidDeep: Structured.render('json',
+        '{\n  "one": 1,\n  "two": 2,\n  "three": [1,2,3],\n  "four": ,\n  "five": 5\n}').error,
+      trailing: Structured.render('json', '{"a": 1} oops').error,
+      unterminated: Structured.render('json', '{"a": "no end}').error,
+      badEscape: Structured.render('json', '{"a": "b\\q"}').error,
+      legal: Structured.render('json',
+        '{"e":-1.5e+3,"u":"\\u00e9 \\" \\\\","n":[null,true,{}],"empty":[]}').error,
+      xmlSummary: Structured.render('xml', '<a><b/><c/></a>').summary,
+      xmlInvalid: Structured.render('xml', '<a><b></a>').error,
+      // A hostile document must not become live markup.
+      noScript: Structured.render('json', '{"x":"<img src=x onerror=alert(1)>"}')
+        .node.querySelectorAll('img').length
+    };
+  });
+
+  check('detects JSON by extension', unit.detectByName, 'json');
+  check('detects XML by extension', unit.detectXmlByName, 'xml');
+  check('detects JSON by content when the name says nothing', unit.detectByContent, 'json');
+  check('detects XML by content', unit.detectXmlByContent, 'xml');
+  check('leaves Markdown alone', unit.detectMarkdown, 'markdown');
+  check('formats JSON', unit.formatted,
+    '{\n  "a": [\n    1,\n    2,\n    {\n      "b": null\n    }\n  ],\n  "c": "x"\n}');
+  check('minifies JSON', unit.minified, '{"a":1}');
+  check('formats XML', unit.xmlFormatted, '<a>\n  <b x="1">t</b>\n  <c/>\n</a>\n');
+  check('summarises valid JSON', unit.validSummary, 'valid JSON · 7 values');
+  check('summarises invalid JSON', unit.invalidSummary, 'invalid JSON');
+  check('reports where the JSON breaks', unit.invalidMessage, 'Invalid JSON at line 2, column 8');
+  check('finds the break in a longer document', unit.invalidDeep,
+    'Invalid JSON at line 5, column 11');
+  check('flags trailing rubbish', unit.trailing, 'Invalid JSON at line 1, column 10');
+  check('flags an unterminated string', unit.unterminated, 'Invalid JSON at line 1, column 15');
+  check('flags a bad escape', unit.badEscape, 'Invalid JSON at line 1, column 10');
+  check('accepts the awkward but legal', unit.legal, null);
+  check('summarises XML', unit.xmlSummary, 'well-formed XML · 3 elements');
+  check('reports malformed XML', unit.xmlInvalid, 'Invalid XML');
+  check('never turns document content into live markup', unit.noScript, 0);
+
+  await importFile(page, 'config.json',
+    '{"name":"wizard","tags":["a","b"],"nested":{"deep":{"ok":true}},"count":3}');
+  await page.waitForFunction(() => document.querySelectorAll('.doc-item').length === 4);
+  check('an imported .json is labelled', await page.textContent('.doc-item:has-text("config") .doc-kind'), 'JSON');
+
+  await openDoc(page, 'config');
+  check('the Markdown toolbar gives way to the data one', await page.isHidden('#format-bar'), true);
+  check('the data toolbar is shown', await page.isVisible('#data-bar'), true);
+  check('validity is reported while editing',
+    await page.textContent('#data-status'), 'valid JSON · 9 values');
+
+  await page.click('#btn-view');
+  await page.waitForSelector('#data-view:not([hidden])');
+  check('the tree renders', await page.$$eval('#data-view details.st-node', (n) => n.length > 0), true);
+  check('keys are shown', await page.$$eval('#data-view .st-key', (n) => n.map((x) => x.textContent))
+    .then((keys) => keys.includes('"name"')), true);
+  check('deep nodes start collapsed',
+    await page.$$eval('#data-view details.st-node', (n) => n.some((d) => !d.open)), true);
+
+  await page.click('[data-data-cmd="expand"]');
+  check('Expand opens every node',
+    await page.$$eval('#data-view details.st-node', (n) => n.every((d) => d.open)), true);
+  await page.click('[data-data-cmd="collapse"]');
+  check('Collapse closes every node',
+    await page.$$eval('#data-view details.st-node', (n) => n.every((d) => !d.open)), true);
+
+  await page.click('#btn-view');
+  await page.click('[data-data-cmd="format"]');
+  check('Format indents the document',
+    (await page.inputValue('#editor')).startsWith('{\n  "name": "wizard"'), true);
+  await page.click('[data-data-cmd="minify"]');
+  check('Minify strips the whitespace',
+    (await page.inputValue('#editor')).startsWith('{"name":"wizard"'), true);
+
+  await page.fill('#editor', '{"broken": }');
+  await page.waitForFunction(() =>
+    document.getElementById('data-status').textContent.indexOf('Invalid') === 0);
+  check('a broken document says so', await page.textContent('#data-status'),
+    'Invalid JSON at line 1, column 12');
+  check('and is flagged, not silently wrong',
+    await page.$eval('#data-status', (n) => n.classList.contains('is-error')), true);
+
+  await page.fill('#editor', '{"fixed": true}');
+  await page.waitForFunction(() =>
+    document.getElementById('data-status').textContent === 'valid JSON · 2 values');
+  await page.waitForFunction(() => document.getElementById('save-state').textContent === 'Saved');
+  await page.click('#btn-back');
+
+  await importFile(page, 'feed.xml',
+    '<?xml version="1.0"?><feed><entry id="1"><title>One</title></entry><entry id="2"><title>Two</title></entry></feed>');
+  await page.waitForFunction(() => document.querySelectorAll('.doc-item').length === 5);
+  await openDoc(page, 'feed');
+  check('XML is recognised', await page.textContent('#data-status'), 'well-formed XML · 5 elements');
+  check('Minify is hidden for XML', await page.isHidden('[data-data-cmd="minify"]'), true);
+
+  await page.click('#btn-view');
+  check('tags are shown', await page.$$eval('#data-view .st-tag', (n) => n[0].textContent), 'feed');
+  check('attributes are shown', await page.$$eval('#data-view .st-attr', (n) => n[0].textContent), 'id');
+  await page.click('#btn-view');
+  await page.click('#btn-back');
+
+  // Markdown documents must be untouched by all of the above.
+  await openDoc(page, 'Ferry notes');
+  check('Markdown keeps its own toolbar', await page.isVisible('#format-bar'), true);
+  check('and no data toolbar', await page.isHidden('#data-bar'), true);
+  await page.click('#btn-view');
+  check('and still renders as Markdown', await page.$$eval('#preview h1', (n) => n.length), 1);
+  await page.click('#btn-view');
+  await page.click('#btn-back');
 
   /* ------------------------------------------- served from a subpath */
 
@@ -340,8 +470,7 @@ async function main() {
   check('a library from the old app name is carried over',
     await docTitles(legacyPage), ['Old notes']);
 
-  await legacyPage.click('.doc-open');
-  await legacyPage.waitForSelector('#screen-editor:not([hidden])');
+  await openDoc(legacyPage, 'Old notes');
   check('the migrated document still has its text',
     await legacyPage.inputValue('#editor'), '# From the old version\n');
   check('no page errors during migration', legacyErrors, []);

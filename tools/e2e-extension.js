@@ -33,7 +33,10 @@ function serveExtensionDir() {
     const file = path.join(EXT, decodeURIComponent(req.url.split('?')[0]));
     fs.readFile(file, (err, data) => {
       if (err) { res.writeHead(404); res.end('not found'); return; }
-      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+      var type = 'text/plain; charset=utf-8';
+      if (file.endsWith('.json')) type = 'application/json; charset=utf-8';
+      if (file.endsWith('.xml')) type = 'application/xml; charset=utf-8';
+      res.writeHead(200, { 'Content-Type': type });
       res.end(data);
     });
   });
@@ -234,10 +237,91 @@ async function main() {
   check('viewer toggles to raw source', await viewer.isVisible('.mds-source'), true);
 
   const other = await ctx.newPage();
-  await other.goto(`http://localhost:${PORT}/manifest.json`);
+  await other.goto(`http://localhost:${PORT}/src/editor/editor.html`);
   await other.waitForTimeout(200);
-  check('viewer leaves non-markdown pages alone',
+  check('viewer leaves pages of other kinds alone',
     await other.$$eval('.mds-shell', (n) => n.length), 0);
+
+  /* ------------------------------------------------------- JSON and XML */
+
+  const jsonPage = await ctx.newPage();
+  watch(jsonPage, 'json viewer');
+  await jsonPage.goto(`http://localhost:${PORT}/sample.json`);
+  await jsonPage.waitForSelector('.mds-shell', { timeout: 5000 });
+  check('a .json page becomes a tree',
+    await jsonPage.$$eval('.st-tree details.st-node', (n) => n.length > 0), true);
+  check('the JSON verdict is shown',
+    await jsonPage.textContent('.mds-side-note'), 'valid JSON · 19 values');
+  check('keys are labelled',
+    await jsonPage.$$eval('.st-key', (n) => n[0].textContent), '"name"');
+  await jsonPage.click('button.mds-btn:has-text("Collapse all")');
+  check('Collapse all closes the tree',
+    await jsonPage.$$eval('.st-tree details.st-node', (n) => n.every((d) => !d.open)), true);
+  await jsonPage.click('button.mds-btn:has-text("Expand all")');
+  check('Expand all opens it again',
+    await jsonPage.$$eval('.st-tree details.st-node', (n) => n.every((d) => d.open)), true);
+  await jsonPage.click('button.mds-btn:has-text("Source")');
+  check('the raw JSON is still one keypress away',
+    await jsonPage.isVisible('.mds-source'), true);
+
+  // Served as application/xml, so Chrome uses its own XML viewer and the
+  // source has to be recovered from that rather than from a <pre>.
+  const xmlPage = await ctx.newPage();
+  watch(xmlPage, 'xml viewer');
+  await xmlPage.goto(`http://localhost:${PORT}/sample.xml`);
+  await xmlPage.waitForSelector('.mds-shell', { timeout: 5000 });
+  check('an .xml page becomes a tree',
+    await xmlPage.$$eval('.st-tree details.st-node', (n) => n.length > 0), true);
+  check('the root element is shown',
+    await xmlPage.$$eval('.st-tag', (n) => n[0].textContent), 'library');
+  check('attributes are shown',
+    await xmlPage.$$eval('.st-attr', (n) => n[0].textContent), 'name');
+  check('comments survive',
+    await xmlPage.$$eval('.st-comment', (n) => n.length), 1);
+
+  /* ------------------------------------------- editing data in the editor */
+
+  const dataResult = await page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory();
+    const write = async (name, text) => {
+      const handle = await root.getFileHandle(name, { create: true });
+      const writable = await handle.createWritable();
+      await writable.write(text);
+      await writable.close();
+      return handle;
+    };
+    const handle = await write('settings.json', '{"b":2,"a":[1,{"deep":true}]}');
+    await window.MarkdownWizard.openFileHandle(handle, { path: 'settings.json' });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    const before = document.getElementById('editor').value;
+    document.querySelector('[data-action="format-data"]').click();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    return {
+      kind: document.body.dataset.kind,
+      toolbarHidden: getComputedStyle(document.querySelector('.format-toolbar')).display === 'none',
+      treeNodes: document.querySelectorAll('#preview details.st-node').length,
+      status: document.getElementById('status-counts').textContent,
+      before: before,
+      after: document.getElementById('editor').value
+    };
+  });
+
+  check('the editor knows a .json file when it opens one', dataResult.kind, 'json');
+  check('the Markdown toolbar is out of the way', dataResult.toolbarHidden, true);
+  check('the preview pane shows a tree', dataResult.treeNodes > 0, true);
+  check('the status bar reports validity', dataResult.status, '9 lines - valid JSON · 6 values');
+  check('Format rewrites the document', dataResult.after,
+    '{\n  "b": 2,\n  "a": [\n    1,\n    {\n      "deep": true\n    }\n  ]\n}');
+
+  const savedJson = await page.evaluate(async () => {
+    await window.MarkdownWizard.saveDocument();
+    const root = await navigator.storage.getDirectory();
+    const handle = await root.getFileHandle('settings.json');
+    return (await handle.getFile()).text();
+  });
+  check('and saves back to the same file', savedJson.startsWith('{\n  "b": 2'), true);
 
   /* --------------------------------------------------------------- popup */
 

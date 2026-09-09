@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
   <title>Markdown Wizard</title>
-  <meta name="description" content="Read and edit Markdown on your phone. Every edit updates the same document.">
+  <meta name="description" content="Read and edit Markdown, JSON and XML on your phone. Every edit updates the same document.">
   <meta name="theme-color" content="#0969da" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,6 +14,7 @@
   <link rel="apple-touch-icon" href="icons/icon180.png">
   <link rel="icon" href="icons/icon192.png">
   <link rel="stylesheet" href="lib/markdown.css">
+  <link rel="stylesheet" href="lib/structured.css">
   <link rel="stylesheet" href="app.css">
 </head>
 <body>
@@ -64,7 +65,16 @@
     <textarea id="editor" placeholder="Start writing…" autocomplete="off"
               autocapitalize="sentences" spellcheck="true"></textarea>
     <article id="preview" class="md-body" hidden></article>
+    <div id="data-view" class="data-view" hidden></div>
   </div>
+
+  <nav id="data-bar" class="format-bar data-bar" aria-label="Data actions" hidden>
+    <span id="data-status" class="data-status"></span>
+    <button type="button" data-data-cmd="format" title="Tidy the indentation">Format</button>
+    <button type="button" data-data-cmd="minify" title="Strip whitespace">Minify</button>
+    <button type="button" data-data-cmd="expand" title="Expand every node">Expand</button>
+    <button type="button" data-data-cmd="collapse" title="Collapse every node">Collapse</button>
+  </nav>
 
   <nav id="format-bar" class="format-bar" aria-label="Formatting">
     <button type="button" data-cmd="heading" title="Heading">H</button>
@@ -97,12 +107,13 @@
   </div>
 </div>
 
-<input type="file" id="file-input" accept=".md,.markdown,.mdown,.mkd,.mdx,.txt,text/markdown,text/plain"
+<input type="file" id="file-input" accept=".md,.markdown,.mdown,.mkd,.mdx,.txt,.json,.geojson,.webmanifest,.xml,.svg,.rss,.atom,.plist,text/markdown,text/plain,application/json,application/xml,text/xml"
        multiple hidden>
 
 <div id="toast" class="toast" hidden></div>
 
 <script src="lib/markdown.js"></script>
+<script src="lib/structured.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

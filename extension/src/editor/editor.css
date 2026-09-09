@@ -513,3 +513,13 @@ body[data-view="preview"] .pane-preview { flex: 1 1 100%; }
 .help-dialog td { padding: 4px 8px 4px 0; vertical-align: top; }
 .help-dialog td:first-child { white-space: nowrap; }
 .help-dialog form { margin-top: 16px; text-align: right; }
+
+/* JSON and XML documents: the Markdown toolbar does not apply, and the preview
+   pane hosts a data tree instead of prose. */
+body[data-kind="json"] .format-toolbar,
+body[data-kind="xml"] .format-toolbar { display: none; }
+
+.pane-preview .st-host { max-width: 100%; }
+.outline .is-error { color: var(--danger); }
+.status-state.is-error,
+#status-counts.is-error { color: var(--danger); }

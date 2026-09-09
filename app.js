@@ -65,7 +65,12 @@
   /** First line of real prose, for the library list. Structural markup makes a
       poor summary, so headings, fences, tables and front matter are skipped and
       list markers are stripped. */
-  function summarise(text) {
+  function summarise(text, kind) {
+    if (kind === 'json' || kind === 'xml') {
+      // Structure, not prose: a squashed head of the document reads better than
+      // a lone brace or the XML prolog.
+      return text.replace(/\s+/g, ' ').trim().slice(0, PREVIEW_CHARS);
+    }
     var line = text.split('\n').find(function (candidate) {
       var trimmed = candidate.trim();
       return trimmed &&
@@ -93,15 +98,17 @@
       return tx('readonly', function (store) { return store.get(id); });
     },
 
-    create: function (title, text) {
+    create: function (title, text, kind) {
       var now = Date.now();
+      var documentKind = kind || Structured.detect(title, text);
       var meta = {
         id: newId(),
         title: title || 'Untitled',
+        kind: documentKind,
         createdAt: now,
         updatedAt: now,
         size: text.length,
-        preview: summarise(text)
+        preview: summarise(text, documentKind)
       };
       return docFile(meta.id, true).then(function (handle) {
         return write(handle, text);
@@ -132,7 +139,8 @@
         }).then(function (file) {
           meta.updatedAt = Date.now();
           meta.size = text.length;
-          meta.preview = summarise(text);
+          meta.kind = meta.kind || Structured.detect(meta.title, text);
+          meta.preview = summarise(text, meta.kind);
           return tx('readwrite', function (store) { store.put(meta); }).then(function () {
             return { meta: meta, lastModified: file.lastModified };
           });
@@ -162,7 +170,7 @@
     duplicate: function (id) {
       return Library.read(id).then(function (doc) {
         if (!doc) return null;
-        return Library.create(doc.meta.title + ' copy', doc.text);
+        return Library.create(doc.meta.title + ' copy', doc.text, doc.meta.kind);
       });
     },
 
@@ -274,7 +282,10 @@
     moreBtn: el('btn-more'),
     editor: el('editor'),
     preview: el('preview'),
+    dataView: el('data-view'),
     formatBar: el('format-bar'),
+    dataBar: el('data-bar'),
+    dataStatus: el('data-status'),
     conflict: el('conflict'),
     conflictText: el('conflict-text'),
     conflictReload: el('conflict-reload'),
@@ -447,6 +458,13 @@
       var name = document.createElement('span');
       name.className = 'doc-name';
       name.textContent = row.title;
+      var rowKind = row.kind || 'markdown';
+      if (rowKind !== 'markdown') {
+        var badge = document.createElement('span');
+        badge.className = 'doc-kind';
+        badge.textContent = Structured.label(rowKind);
+        name.appendChild(badge);
+      }
 
       var meta = document.createElement('span');
       meta.className = 'doc-meta';
@@ -490,6 +508,7 @@
   dom.newBtn.addEventListener('click', function () {
     ask({
       title: 'New document',
+      text: 'End the name with .json or .xml for a data file; anything else is Markdown.',
       input: { value: '', placeholder: 'Title' },
       actions: [
         { label: 'Cancel', value: null },
@@ -498,7 +517,11 @@
     }).then(function (result) {
       if (!result || result.value !== 'create') return;
       var title = result.text || 'Untitled';
-      return Library.create(title, '# ' + title + '\n\n').then(function (meta) {
+      var kind = Structured.detect(title, '');
+      var seed = kind === 'json' ? '{\n  \n}\n'
+        : kind === 'xml' ? '<root>\n  \n</root>\n'
+        : '# ' + title + '\n\n';
+      return Library.create(title, seed, kind).then(function (meta) {
         announce({ type: 'library' });
         location.hash = '#/d/' + meta.id;
       });
@@ -529,9 +552,10 @@
   function importOne(file) {
     var title = file.name.replace(/\.[^.]+$/, '');
     return file.text().then(function (text) {
+      var kind = Structured.detect(file.name, text);
       return Library.findByTitle(title).then(function (existing) {
         if (!existing) {
-          return Library.create(title, text).then(function () {
+          return Library.create(title, text, kind).then(function () {
             toast('Imported ' + title);
           });
         }
@@ -559,7 +583,7 @@
               });
             }
             if (choice === 'both') {
-              return Library.create(title + ' (imported)', text).then(function () {
+              return Library.create(title + ' (imported)', text, kind).then(function () {
                 toast('Imported as "' + title + ' (imported)"');
               });
             }
@@ -664,15 +688,20 @@
         { label: words.toLocaleString() + ' words', detail: lines + ' lines · ' + formatBytes(doc.text.length) },
         { label: 'Updated ' + relativeTime(meta.updatedAt), detail: new Date(meta.updatedAt).toLocaleString() },
         { label: 'Created ' + relativeTime(meta.createdAt), detail: new Date(meta.createdAt).toLocaleString() },
-        { label: 'Stored as', detail: 'docs/' + meta.id + '.md in this browser' }
+        { label: Structured.label(meta.kind || Structured.detect(meta.title, doc.text)),
+          detail: 'docs/' + meta.id + '.md in this browser' }
       ]);
     });
   }
 
   function exportDoc(meta) {
     Library.read(meta.id).then(function (doc) {
-      var fileName = meta.title.replace(/[\\/:*?"<>|]/g, '-') + '.md';
-      var file = new File([doc.text], fileName, { type: 'text/markdown' });
+      var kind = meta.kind || Structured.detect(meta.title, doc.text);
+      var extension = Structured.extensionFor(kind);
+      var base = meta.title.replace(/[\\/:*?"<>|]/g, '-');
+      // Do not end up with "config.json.json".
+      var fileName = base.toLowerCase().endsWith(extension) ? base : base + extension;
+      var file = new File([doc.text], fileName, { type: Structured.mimeFor(kind) });
 
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         return navigator.share({ files: [file], title: meta.title })
@@ -716,11 +745,14 @@
       current = {
         id: doc.meta.id,
         title: doc.meta.title,
+        // Rows written before JSON and XML were supported have no kind.
+        kind: doc.meta.kind || Structured.detect(doc.meta.title, doc.text),
         savedText: doc.text,
         lastModified: doc.lastModified
       };
       dom.editor.value = doc.text;
       dom.title.textContent = doc.meta.title;
+      applyKind(current.kind);
       hideConflict();
       setPreview(false);
       setSaveState('saved');
@@ -761,21 +793,64 @@
     setSaveState('unsaved');
     queueSave();
     if (showingPreview) renderPreview();
+    if (current && current.kind !== 'markdown') queueValidate();
   });
+
+  var queueValidate = debounce(validate, 250);
 
   var renderPreview = debounce(function () {
     if (!showingPreview) return;
-    dom.preview.innerHTML = MD.render(dom.editor.value).html;
+    paintPreview();
   }, 90);
+
+  /** Markdown renders to HTML; JSON and XML render to a tree of real nodes. */
+  function paintPreview() {
+    var kind = current ? current.kind : 'markdown';
+    if (kind === 'markdown') {
+      dom.preview.innerHTML = MD.render(dom.editor.value).html;
+      return;
+    }
+    var result = Structured.render(kind, dom.editor.value);
+    dom.dataView.replaceChildren(result.node);
+    setDataStatus(result.error || result.summary, !!result.error);
+  }
+
+  function setDataStatus(text, isError) {
+    dom.dataStatus.textContent = text || '';
+    dom.dataStatus.classList.toggle('is-error', !!isError);
+  }
+
+  /** Swaps the toolbars and the preview host for the document's format. */
+  function applyKind(kind) {
+    var isData = kind === 'json' || kind === 'xml';
+    document.body.dataset.kind = kind;
+    var minify = dom.dataBar.querySelector('[data-data-cmd="minify"]');
+    if (minify) minify.hidden = kind !== 'json';
+    dom.formatBar.hidden = isData || showingPreview;
+    dom.dataBar.hidden = !isData;
+    if (isData) validate();
+  }
+
+  /** Data files get a running verdict even while editing, so a stray comma is
+      obvious before you leave the document. */
+  function validate() {
+    if (!current || current.kind === 'markdown') return;
+    var result = Structured.render(current.kind, dom.editor.value);
+    setDataStatus(result.error || result.summary, !!result.error);
+  }
 
   function setPreview(on) {
     showingPreview = on;
-    dom.preview.hidden = !on;
+    var kind = current ? current.kind : 'markdown';
+    var isData = kind === 'json' || kind === 'xml';
+    dom.preview.hidden = !on || isData;
+    dom.dataView.hidden = !on || !isData;
     dom.editor.hidden = on;
-    dom.formatBar.hidden = on;
+    dom.formatBar.hidden = on || isData;
+    dom.dataBar.hidden = !isData;
     dom.viewBtn.classList.toggle('is-active', on);
     dom.viewBtn.setAttribute('aria-label', on ? 'Back to editing' : 'Preview');
-    if (on) dom.preview.innerHTML = MD.render(dom.editor.value).html;
+    if (on) paintPreview();
   }
 
   dom.viewBtn.addEventListener('click', function () { setPreview(!showingPreview); });
@@ -888,6 +963,33 @@
     }
   };
 
+  dom.dataBar.addEventListener('click', function (event) {
+    var button = event.target.closest('button[data-data-cmd]');
+    if (!button || !current) return;
+    var action = button.dataset.dataCmd;
+
+    if (action === 'expand' || action === 'collapse') {
+      if (!showingPreview) setPreview(true);
+      Structured.expandAll(dom.dataView, action === 'expand');
+      return;
+    }
+
+    try {
+      var next = action === 'minify'
+        ? Structured.minifyJson(dom.editor.value)
+        : Structured.format(current.kind, dom.editor.value);
+      if (next === dom.editor.value) {
+        toast('Already tidy');
+        return;
+      }
+      dom.editor.value = next;
+      dom.editor.dispatchEvent(new Event('input', { bubbles: true }));
+      toast(action === 'minify' ? 'Minified' : 'Formatted');
+    } catch (error) {
+      toast('Cannot ' + action + ': ' + error.message, true);
+    }
+  });
+
   dom.formatBar.addEventListener('click', function (event) {
     var button = event.target.closest('button[data-cmd]');
     if (!button) return;
@@ -911,6 +1013,7 @@
   var LIST_ITEM = /^(\s*)(?:([-*+])|(\d+)([.)]))(\s+)(\[[ xX]\]\s+)?(.*)$/;
   dom.editor.addEventListener('keydown', function (event) {
     if (event.key !== 'Enter' || event.shiftKey) return;
+    if (current && current.kind !== 'markdown') return;
     var sel = selection();
     if (sel.start !== sel.end) return;
     var lineStart = sel.value.lastIndexOf('\n', Math.max(0, sel.start - 1)) + 1;

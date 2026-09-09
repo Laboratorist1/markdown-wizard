@@ -1,0 +1,13 @@
+{
+  "name": "markdown-wizard",
+  "version": "1.1.0",
+  "private": true,
+  "features": ["markdown", "json", "xml"],
+  "viewer": {
+    "collapsible": true,
+    "depthOpenByDefault": 2,
+    "limits": { "maxNodes": 20000, "truncates": true }
+  },
+  "storage": { "documents": "opfs", "metadata": "indexeddb", "remote": null },
+  "notes": "A sample file for trying the JSON viewer."
+}

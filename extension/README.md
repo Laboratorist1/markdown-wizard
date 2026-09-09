@@ -1,8 +1,8 @@
 # Markdown Wizard — the Chrome extension
 
 Open a real file (or a whole folder) from disk, edit it, and save straight back
-to the original file. No server, no sync, no account — the files never leave
-your machine.
+to the original file. Handles Markdown, JSON and XML. No server, no sync, no
+account — the files never leave your machine.
 
 For the phone app, see the [repository README](../README.md).
 
@@ -14,6 +14,9 @@ For the phone app, see the [repository README](../README.md).
 
 - Any `.md`, `.markdown`, `.mdown`, `.mkd` or `.mdx` file you open in a tab renders
   as a formatted document instead of raw text — local `file:///` paths included.
+- `.json` and `.xml` files (and `.geojson`, `.svg`, `.rss`, `.atom`, `.plist`…)
+  render as a collapsible tree with Expand all / Collapse all, a validity
+  verdict, and the raw source one keypress away.
 - Outline sidebar that tracks the section you are reading, source/rendered toggle
   (`v`), copy source (`c` via the button), and one keypress into the editor (`e`).
 
@@ -25,6 +28,8 @@ For the phone app, see the [repository README](../README.md).
   `Enter` continues lists and task lists (and ends them on an empty item),
   `Tab` / `Shift+Tab` indent and outdent.
 - `Ctrl+S` writes back to the original file on disk. Optional autosave.
+- JSON and XML documents swap the Markdown toolbar for a data view, report
+  validity in the status bar, and can be formatted or minified from the ⋯ menu.
 - Files you open are remembered between browser restarts, so the sidebar picks up
   where you left off.
 - If a file changes on disk while it is open, a clean buffer reloads itself and a
