@@ -178,3 +178,45 @@ button.rc-field:active, button.rc-field:hover { background: var(--rc-inset); }
   font-size: 14px;
   cursor: pointer;
 }
+
+/* A row can be dragged to either side to take it out of the list. The row
+   yields vertical movement to the browser so the page still scrolls. */
+.rc-row { position: relative; overflow: hidden; }
+
+.rc-row .rc-card {
+  position: relative;
+  background: var(--rc-bg, transparent);
+  touch-action: pan-y;
+  will-change: transform;
+}
+
+.rc-row.is-swiping .rc-card { background: var(--rc-inset); }
+
+.rc-row-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  color: var(--rc-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0;
+}
+
+/* The word shows on both sides, so either direction reads the same. */
+.rc-row-hint::after { content: "Remove"; }
+.rc-row.is-swiping .rc-row-hint { opacity: 1; }
+
+.rc-row.is-armed .rc-row-hint {
+  color: #ffffff;
+  background: var(--rc-danger);
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rc-row .rc-card { transition: none !important; }
+}

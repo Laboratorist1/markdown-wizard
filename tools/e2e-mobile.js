@@ -78,6 +78,20 @@ async function importFile(page, name, contents) {
 
 /** Opens a document and leaves it showing its text. Documents now open in the
     formatted view, so this switches once. */
+/** Drags a row sideways with a real pointer, the way a thumb would. */
+async function swipeRow(page, selector, distance) {
+  const box = await page.locator(selector).first().boundingBox();
+  const y = box.y + box.height / 2;
+  const from = box.x + box.width / 2;
+  await page.mouse.move(from, y);
+  await page.mouse.down();
+  // Several small steps: one jump would look like neither a drag nor a scroll.
+  for (let step = 1; step <= 8; step++) {
+    await page.mouse.move(from + (distance * step) / 8, y, { steps: 1 });
+  }
+  await page.mouse.up();
+}
+
 async function openDoc(page, name) {
   await openDocFormatted(page, name);
   if (await page.isHidden('#editor')) await page.click('#btn-view');
@@ -582,6 +596,43 @@ async function main() {
     await page.waitForSelector('#prompt', { state: 'hidden' });
     return page.evaluate(() => JSON.parse(document.getElementById('editor').value).books.length);
   })(), 2);
+
+  /* ---------------------------------------------- removing by a gesture */
+
+  const before = await page.evaluate(() =>
+    JSON.parse(document.getElementById('editor').value).books.map((b) => b.title));
+
+  // A short drag is not a removal.
+  await swipeRow(page, '.rc-row', 30);
+  check('a small drag leaves the row alone', await page.$$eval('.rc-card', (n) => n.length), 2);
+  check('and does not open the record', await page.isHidden('.rc-detail'), true);
+
+  // A full drag to the left removes it.
+  await swipeRow(page, '.rc-row', -260);
+  await page.waitForFunction(() => document.querySelectorAll('.rc-card').length === 1);
+  check('dragging a row aside removes it', await page.$$eval('.rc-card', (n) => n.length), 1);
+  check('the document is still valid JSON', await page.evaluate(() => {
+    try { JSON.parse(document.getElementById('editor').value); return 'valid'; }
+    catch (e) { return e.message; }
+  }), 'valid');
+  check('and the record is gone from it', await page.evaluate(() =>
+    JSON.parse(document.getElementById('editor').value).books.length), 1);
+  check('with an undo offered', await page.isVisible('.toast-action'), true);
+
+  await page.click('.toast-action');
+  await page.waitForFunction(() => document.querySelectorAll('.rc-card').length === 2);
+  check('undo puts the record back', await page.evaluate(() =>
+    JSON.parse(document.getElementById('editor').value).books.map((b) => b.title)), before);
+
+  // Either direction works.
+  await swipeRow(page, '.rc-row', 260);
+  await page.waitForFunction(() => document.querySelectorAll('.rc-card').length === 1);
+  check('dragging the other way removes it too',
+    await page.$$eval('.rc-card', (n) => n.length), 1);
+  await page.click('.toast-action');
+  await page.waitForFunction(() => document.querySelectorAll('.rc-card').length === 2);
+  check('and that is undoable as well', await page.evaluate(() =>
+    JSON.parse(document.getElementById('editor').value).books.map((b) => b.title)), before);
 
   await page.click('[data-data-cmd="mode"]');
   check('the raw tree is still there', await page.$$eval('#data-view .st-tree', (n) => n.length), 1);

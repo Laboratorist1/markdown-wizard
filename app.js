@@ -17,7 +17,7 @@
   var AUTOSAVE_MS = 700;
   // Shown in the library footer so it is possible to tell which build is
   // actually running after an update; keep in step with the cache in sw.js.
-  var BUILD = 'build 10';
+  var BUILD = 'build 11';
   var PREVIEW_CHARS = 160;
 
   /* =====================================================================
@@ -305,12 +305,28 @@
   };
 
   var toastTimer = null;
-  function toast(message, isError) {
+  function toast(message, isError, action) {
     dom.toast.textContent = message;
     dom.toast.classList.toggle('is-error', !!isError);
+
+    if (action) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'toast-action';
+      button.textContent = action.label;
+      button.addEventListener('click', function () {
+        dom.toast.hidden = true;
+        clearTimeout(toastTimer);
+        action.onClick();
+      });
+      dom.toast.appendChild(button);
+    }
+
     dom.toast.hidden = false;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { dom.toast.hidden = true; }, isError ? 4000 : 2000);
+    // An action needs long enough to be read and reached for.
+    toastTimer = setTimeout(function () { dom.toast.hidden = true; },
+      action ? 6000 : (isError ? 4000 : 2000));
   }
 
   function debounce(fn, wait) {
@@ -914,6 +930,7 @@
       collection: collection,
       onEdit: editRecordField,
       onDelete: confirmRecordDelete,
+      onRemoved: announceRemoval,
       onChange: writeBackRecords
     });
     rich.label = (collection.label === 'root' ? 'records' : collection.label) + ' · ' +
@@ -1004,6 +1021,13 @@
         return { value: text };
       }
     });
+  }
+
+  /** A row can be swiped out, which is easy to do by accident, so a removal is
+      undoable rather than guarded by a prompt. */
+  function announceRemoval(record, restore) {
+    var name = Records.preview(record[rich.widget.headline]);
+    toast('Removed ' + name, false, { label: 'Undo', onClick: restore });
   }
 
   function confirmRecordDelete(record) {

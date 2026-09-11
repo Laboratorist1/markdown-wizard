@@ -72,6 +72,10 @@ attributes rather than identifiers.
 - **Sort** by any field, either direction
 - **Tap a record** to see every field, typed and coloured, and tap a field to
   change it
+- **Drag a row to either side** to take it out of the list. Removal is undoable
+  from the message that follows rather than guarded by a prompt, because a
+  gesture is easy to make by accident — and a drag never counts as a tap, so a
+  half-swipe that springs back does not open the record
 
 Editing is the part worth being careful about. A value is edited through the
 parsed document and the file is written back with `JSON.stringify`, so the only

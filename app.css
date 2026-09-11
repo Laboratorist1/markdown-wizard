@@ -481,3 +481,16 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 
 .data-status.is-error { color: var(--danger); }
+
+.toast-action {
+  margin-left: 14px;
+  padding: 2px 6px;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
