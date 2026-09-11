@@ -17,7 +17,7 @@
   var AUTOSAVE_MS = 700;
   // Shown in the library footer so it is possible to tell which build is
   // actually running after an update; keep in step with the cache in sw.js.
-  var BUILD = 'build 11';
+  var BUILD = 'build 12';
   var PREVIEW_CHARS = 160;
 
   /* =====================================================================
@@ -931,6 +931,7 @@
       onEdit: editRecordField,
       onDelete: confirmRecordDelete,
       onRemoved: announceRemoval,
+      onHidden: announceHidden,
       onChange: writeBackRecords
     });
     rich.label = (collection.label === 'root' ? 'records' : collection.label) + ' · ' +
@@ -1023,11 +1024,18 @@
     });
   }
 
-  /** A row can be swiped out, which is easy to do by accident, so a removal is
-      undoable rather than guarded by a prompt. */
+  /** Swiping a row aside only takes it out of the list being shown; the
+      document is not touched, and the row comes back with Show all. */
+  function announceHidden(record, restore) {
+    var name = Records.preview(record[rich.widget.headline]);
+    toast('Hidden from the list · ' + name, false, { label: 'Undo', onClick: restore });
+  }
+
+  /** Deleting really does change the document, so it says so. */
   function announceRemoval(record, restore) {
     var name = Records.preview(record[rich.widget.headline]);
-    toast('Removed ' + name, false, { label: 'Undo', onClick: restore });
+    toast('Deleted ' + name + ' from the document', false,
+      { label: 'Undo', onClick: restore });
   }
 
   function confirmRecordDelete(record) {

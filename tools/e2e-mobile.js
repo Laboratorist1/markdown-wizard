@@ -599,40 +599,59 @@ async function main() {
 
   /* ---------------------------------------------- removing by a gesture */
 
-  const before = await page.evaluate(() =>
+  const documentBefore = await page.evaluate(() => document.getElementById('editor').value);
+  const titlesBefore = await page.evaluate(() =>
     JSON.parse(document.getElementById('editor').value).books.map((b) => b.title));
 
-  // A short drag is not a removal.
+  // A short drag is not a gesture.
   await swipeRow(page, '.rc-row', 30);
   check('a small drag leaves the row alone', await page.$$eval('.rc-card', (n) => n.length), 2);
   check('and does not open the record', await page.isHidden('.rc-detail'), true);
 
-  // A full drag to the left removes it.
+  // A full drag takes the row out of the list - and only out of the list.
   await swipeRow(page, '.rc-row', -260);
   await page.waitForFunction(() => document.querySelectorAll('.rc-card').length === 1);
-  check('dragging a row aside removes it', await page.$$eval('.rc-card', (n) => n.length), 1);
-  check('the document is still valid JSON', await page.evaluate(() => {
-    try { JSON.parse(document.getElementById('editor').value); return 'valid'; }
-    catch (e) { return e.message; }
-  }), 'valid');
-  check('and the record is gone from it', await page.evaluate(() =>
-    JSON.parse(document.getElementById('editor').value).books.length), 1);
+  check('dragging a row aside takes it out of the list',
+    await page.$$eval('.rc-card', (n) => n.length), 1);
+  check('the document is not touched',
+    await page.evaluate(() => document.getElementById('editor').value), documentBefore);
+  check('every record is still in the file', await page.evaluate(() =>
+    JSON.parse(document.getElementById('editor').value).books.length), 2);
+  check('the count says how many are hidden',
+    (await page.textContent('.rc-count')).indexOf('1 hidden') !== -1, true);
   check('with an undo offered', await page.isVisible('.toast-action'), true);
+  check('and the message says it is only the list',
+    (await page.textContent('#toast')).indexOf('Hidden from the list') === 0, true);
 
   await page.click('.toast-action');
   await page.waitForFunction(() => document.querySelectorAll('.rc-card').length === 2);
-  check('undo puts the record back', await page.evaluate(() =>
-    JSON.parse(document.getElementById('editor').value).books.map((b) => b.title)), before);
+  check('undo brings the row back', await page.$$eval('.rc-card-title',
+    (n) => n.map((x) => x.textContent)), titlesBefore);
 
-  // Either direction works.
+  // Either direction, and Show all brings everything back.
   await swipeRow(page, '.rc-row', 260);
   await page.waitForFunction(() => document.querySelectorAll('.rc-card').length === 1);
-  check('dragging the other way removes it too',
+  check('dragging the other way hides too',
     await page.$$eval('.rc-card', (n) => n.length), 1);
+  await page.click('.rc-show-all');
+  await page.waitForFunction(() => document.querySelectorAll('.rc-card').length === 2);
+  check('Show all brings the hidden rows back', await page.$$eval('.rc-card-title',
+    (n) => n.map((x) => x.textContent)), titlesBefore);
+  check('and the document was never changed',
+    await page.evaluate(() => document.getElementById('editor').value), documentBefore);
+
+  // Deleting from the record itself still does change the document.
+  await page.click('.rc-card:has-text("' + titlesBefore[0] + '")');
+  await page.click('.rc-delete');
+  await page.click('.prompt-button.danger');
+  await page.waitForSelector('#prompt', { state: 'hidden' });
+  check('deleting a record does remove it from the document', await page.evaluate(() =>
+    JSON.parse(document.getElementById('editor').value).books.length), 1);
+  check('and says so', (await page.textContent('#toast')).indexOf('Deleted') === 0, true);
   await page.click('.toast-action');
   await page.waitForFunction(() => document.querySelectorAll('.rc-card').length === 2);
-  check('and that is undoable as well', await page.evaluate(() =>
-    JSON.parse(document.getElementById('editor').value).books.map((b) => b.title)), before);
+  check('undo restores it to the document', await page.evaluate(() =>
+    JSON.parse(document.getElementById('editor').value).books.map((b) => b.title)), titlesBefore);
 
   await page.click('[data-data-cmd="mode"]');
   check('the raw tree is still there', await page.$$eval('#data-view .st-tree', (n) => n.length), 1);

@@ -207,16 +207,29 @@ button.rc-field:active, button.rc-field:hover { background: var(--rc-inset); }
   opacity: 0;
 }
 
-/* The word shows on both sides, so either direction reads the same. */
-.rc-row-hint::after { content: "Remove"; }
+/* The word shows on both sides, so either direction reads the same. It says
+   "hide" because that is all it does: the document is not touched. */
+.rc-row-hint::before { content: "Hide"; }
+.rc-row-hint::after { content: "Hide"; }
 .rc-row.is-swiping .rc-row-hint { opacity: 1; }
 
 .rc-row.is-armed .rc-row-hint {
   color: #ffffff;
-  background: var(--rc-danger);
+  background: var(--rc-muted);
   opacity: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .rc-row .rc-card { transition: none !important; }
+}
+
+.rc-show-all {
+  padding: 1px 8px;
+  color: var(--rc-accent);
+  background: none;
+  border: 1px solid var(--rc-border);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
 }
