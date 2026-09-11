@@ -149,13 +149,49 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 
 .doc-item {
+  position: relative;
   display: flex;
   align-items: stretch;
   gap: 4px;
   border-bottom: 1px solid var(--border);
+  overflow: hidden;
 }
 
+/* A document can be dragged to either side to leave the list. The row yields
+   vertical movement to the browser, so the library still scrolls. */
+.doc-hint {
+  position: absolute;
+  inset: 0;
+  /* The label sits behind the row: it is something to read, never something
+     to hit, or it would swallow taps meant for the buttons above it. */
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0;
+}
+
+/* The word shows on both sides, so either direction reads the same. */
+.doc-hint::before { content: attr(data-word); }
+.doc-hint::after { content: attr(data-word); }
+.doc-item.is-swiping .doc-hint { opacity: 1; }
+.doc-item.is-swiping .doc-more { opacity: 0; }
+.doc-item.is-armed .doc-hint { color: var(--fg); }
+
+.is-hidden-doc .doc-name,
+.is-hidden-doc .doc-preview { opacity: 0.55; }
+
 .doc-open {
+  position: relative;
+  background: var(--bg);
+  touch-action: pan-y;
+  will-change: transform;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -163,12 +199,12 @@ button { -webkit-tap-highlight-color: transparent; }
   min-width: 0;
   padding: 12px 4px;
   text-align: left;
-  background: none;
   border: 0;
   cursor: pointer;
 }
 
 .doc-open:active { background: var(--bg-inset); }
+.doc-item.is-swiping .doc-open { background: var(--bg-inset); }
 
 .doc-name {
   font-weight: 600;
@@ -188,6 +224,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .doc-meta { color: var(--muted); font-size: 12px; }
 
 .doc-more {
+  position: relative;
   flex: none;
   width: 44px;
   color: var(--muted);
@@ -218,6 +255,17 @@ button { -webkit-tap-highlight-color: transparent; }
   background: var(--bg-inset);
   border-radius: 6px;
   font-size: 13px;
+}
+
+.line-action {
+  padding: 1px 8px;
+  color: var(--accent);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
 }
 
 .storage-line {

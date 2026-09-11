@@ -49,6 +49,7 @@
         "*://*/*.plist"
       ],
       "js": [
+        "src/lib/swipe.js",
         "src/lib/markdown.js",
         "src/lib/structured.js",
         "src/lib/book.js",

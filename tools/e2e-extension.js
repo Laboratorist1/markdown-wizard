@@ -45,7 +45,7 @@ function serveExtensionDir() {
 
 async function main() {
   // The extension ships its own copy of the shared renderer.
-  for (const file of ['markdown.js', 'markdown.css']) {
+  for (const file of fs.readdirSync(path.resolve(__dirname, '..', 'shared'))) {
     const shared = fs.readFileSync(path.resolve(__dirname, '..', 'shared', file), 'utf8');
     const mine = fs.readFileSync(path.join(EXT, 'src', 'lib', file), 'utf8');
     check(`src/lib/${file} matches shared/ (run tools/sync-shared.sh)`, mine === shared, true);

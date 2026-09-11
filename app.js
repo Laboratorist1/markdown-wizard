@@ -17,7 +17,7 @@
   var AUTOSAVE_MS = 700;
   // Shown in the library footer so it is possible to tell which build is
   // actually running after an update; keep in step with the cache in sw.js.
-  var BUILD = 'build 12';
+  var BUILD = 'build 13';
   var PREVIEW_CHARS = 160;
 
   /* =====================================================================
@@ -158,6 +158,17 @@
         // is nothing to copy and no way to end up with two files.
         meta.title = title;
         meta.updatedAt = Date.now();
+        return tx('readwrite', function (store) { store.put(meta); }).then(function () { return meta; });
+      });
+    },
+
+    /** Hiding is a view decision, not an edit: the file is untouched and the
+        document keeps its place in the sort, so unhiding puts it back exactly
+        where it was. */
+    setHidden: function (id, hidden) {
+      return Library.get(id).then(function (meta) {
+        if (!meta) return null;
+        if (hidden) meta.hidden = true; else delete meta.hidden;
         return tx('readwrite', function (store) { store.put(meta); }).then(function () { return meta; });
       });
     },
@@ -438,6 +449,8 @@
      ===================================================================== */
 
   var libraryRows = [];
+  // Hidden documents are out of the list until this is turned on.
+  var showingHidden = false;
 
   function renderLibrary() {
     return Library.list().then(function (rows) {
@@ -449,14 +462,15 @@
 
   function paintLibrary() {
     var query = dom.search.value.trim().toLowerCase();
-    var rows = !query ? libraryRows : libraryRows.filter(function (row) {
+    var listed = libraryRows.filter(function (row) { return showingHidden || !row.hidden; });
+    var rows = !query ? listed : listed.filter(function (row) {
       return (row.title + ' ' + (row.preview || '')).toLowerCase().indexOf(query) !== -1;
     });
 
     dom.list.textContent = '';
     dom.libraryEmpty.hidden = libraryRows.length > 0;
 
-    if (libraryRows.length && !rows.length) {
+    if (listed.length && !rows.length) {
       var none = document.createElement('p');
       none.className = 'empty-state';
       none.textContent = 'Nothing matches "' + dom.search.value.trim() + '".';
@@ -466,7 +480,7 @@
 
     rows.forEach(function (row) {
       var item = document.createElement('div');
-      item.className = 'doc-item';
+      item.className = 'doc-item' + (row.hidden ? ' is-hidden-doc' : '');
       item.setAttribute('role', 'listitem');
 
       var open = document.createElement('button');
@@ -484,6 +498,12 @@
         badge.textContent = Structured.label(rowKind);
         name.appendChild(badge);
       }
+      if (row.hidden) {
+        var mark = document.createElement('span');
+        mark.className = 'doc-kind';
+        mark.textContent = 'Hidden';
+        name.appendChild(mark);
+      }
 
       var meta = document.createElement('span');
       meta.className = 'doc-meta';
@@ -496,7 +516,14 @@
       open.appendChild(name);
       open.appendChild(preview);
       open.appendChild(meta);
-      open.addEventListener('click', function () { location.hash = '#/d/' + row.id; });
+      open.addEventListener('click', function (event) {
+        // A swipe ends in a click; that click is not a tap on the document.
+        if (Swipe.wasSwipe(open)) {
+          event.preventDefault();
+          return;
+        }
+        location.hash = '#/d/' + row.id;
+      });
 
       var more = document.createElement('button');
       more.type = 'button';
@@ -508,18 +535,64 @@
         documentActions(row, false);
       });
 
+      var hint = document.createElement('span');
+      hint.className = 'doc-hint';
+      hint.dataset.word = row.hidden ? 'Show' : 'Hide';
+
+      item.appendChild(hint);
       item.appendChild(open);
       item.appendChild(more);
+      Swipe.enable(item, open, function () { setDocumentHidden(row, !row.hidden); });
       dom.list.appendChild(item);
+    });
+  }
+
+  /** Takes a document out of the list, or puts it back. Nothing is deleted:
+      the document stays on the device with its text intact, which is the whole
+      point of having this as well as Delete. */
+  function setDocumentHidden(row, hidden) {
+    return Library.setHidden(row.id, hidden).then(function () {
+      announce({ type: 'library' });
+      return renderLibrary();
+    }).then(function () {
+      toast(hidden ? 'Hidden from the list · ' + row.title : 'Back in the list · ' + row.title,
+        false, hidden ? {
+          label: 'Undo',
+          onClick: function () { setDocumentHidden(row, false); }
+        } : null);
     });
   }
 
   function updateStorageLine(rows) {
     var count = rows.length;
     var bytes = rows.reduce(function (total, row) { return total + (row.size || 0); }, 0);
-    dom.storageLine.textContent = (count
+    var away = rows.filter(function (row) { return row.hidden; }).length;
+
+    dom.storageLine.textContent = count
       ? count + (count === 1 ? ' document' : ' documents') + ' · ' + formatBytes(bytes) + ' on this device'
-      : 'No documents yet') + ' · ' + BUILD;
+      : 'No documents yet';
+
+    // Hidden documents are still counted above, because they are still here.
+    // Saying so, and offering the way back, is what keeps hiding from feeling
+    // like losing something.
+    if (away) {
+      dom.storageLine.appendChild(document.createTextNode(' · ' + away + ' hidden '));
+      var toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'line-action';
+      toggle.id = 'show-hidden';
+      toggle.textContent = showingHidden ? 'Hide them again' : 'Show hidden';
+      toggle.addEventListener('click', function () {
+        showingHidden = !showingHidden;
+        paintLibrary();
+        updateStorageLine(libraryRows);
+      });
+      dom.storageLine.appendChild(toggle);
+    } else if (showingHidden) {
+      showingHidden = false;
+    }
+
+    dom.storageLine.appendChild(document.createTextNode(' · ' + BUILD));
   }
 
   dom.search.addEventListener('input', paintLibrary);
@@ -669,6 +742,13 @@
       },
       { separator: true },
       {
+        label: meta.hidden ? 'Show in list' : 'Hide from list',
+        detail: meta.hidden
+          ? 'Puts it back among the documents.'
+          : 'Tidies the list only. The document stays on this device.',
+        onClick: function () { setDocumentHidden(meta, !meta.hidden); }
+      },
+      {
         label: 'Document info',
         onClick: function () { showInfo(meta); }
       },
@@ -683,7 +763,8 @@
         onClick: function () {
           ask({
             title: 'Delete "' + meta.title + '"?',
-            text: 'This removes it from this device. It cannot be undone.',
+            text: 'This erases it from this device, text and all. It cannot be undone. ' +
+              'To tidy the list without losing anything, use Hide from list instead.',
             actions: [
               { label: 'Cancel', value: null },
               { label: 'Delete', value: 'delete', danger: true }

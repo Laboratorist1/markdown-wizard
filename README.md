@@ -43,7 +43,15 @@ That is the whole install; nothing else runs anywhere.
 - Opening a document leads with its **formatted view** — rendered prose, a
   book's contents, a list of records — and **◨** switches to the text. A
   document you have just created opens in the text, ready to type into
-- **⋯** rename, share, copy, duplicate, info, delete
+- **⋯** rename, share, copy, duplicate, info, hide, delete
+- **Drag a document to either side** to hide it from the list. The document
+  stays on the device with its text intact — this tidies the view, nothing
+  more — and the line under the library keeps score: `3 documents · 12 KB on
+  this device · 1 hidden · Show hidden`. Bring one back by swiping it the other
+  way once shown, or from **⋯ → Show in list**. Hiding is remembered between
+  visits, because a tidied list that untidies itself is no use
+- **Delete**, in the same menu, is the other thing entirely: it erases the
+  document from the device, and says so before it does
 - `Enter` continues lists and task lists; the format bar sits above the keyboard
 
 ### Three kinds of document
@@ -72,11 +80,13 @@ attributes rather than identifiers.
 - **Sort** by any field, either direction
 - **Tap a record** to see every field, typed and coloured, and tap a field to
   change it
-- **Drag a row to either side** to hide it from the list. This tidies the view
-  and nothing else: the document is not touched, the count line keeps score
-  (`3 shown · 1 hidden`) and **Show all** brings the hidden rows straight back.
-  Hiding lasts while the document is open. A drag never counts as a tap either,
-  so a half-swipe that springs back does not open the record
+- **Drag a row to either side** to hide it from the list — the same gesture as
+  the library, and the same promise: the view is tidied, the document is not
+  touched. The count line keeps score (`3 shown · 1 hidden`) and **Show all**
+  brings the hidden rows straight back. Here hiding lasts while the document is
+  open, since it is a way to read a long list rather than a filing decision. A
+  drag never counts as a tap either, so a half-swipe that springs back does not
+  open the record
 - **Delete**, inside a record's detail view, is the one that changes the
   document — and it is undoable from the message that follows
 
@@ -197,6 +207,7 @@ markdown-wizard/
 │                                                          #   serves /<repo>/
 ├── extension/          # the Chrome extension, self-contained so it zips
 ├── shared/             # the renderers (Markdown, JSON, XML, books, records)
+│                       #   and the swipe gesture both lists use
 ├── docs/               # screenshots
 └── tools/
     ├── e2e-mobile.js       # Playwright checks, phone-emulated

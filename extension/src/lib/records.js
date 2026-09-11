@@ -327,8 +327,7 @@
 
         card.addEventListener('click', function (event) {
           // A swipe ends in a click; that click is not a tap on the row.
-          if (card.dataset.swiped === 'yes') {
-            delete card.dataset.swiped;
+          if (Swipe.wasSwipe(card)) {
             event.preventDefault();
             return;
           }
@@ -344,80 +343,13 @@
       });
     }
 
-    /** Drag a row to either side to take it out of the list. Horizontal only:
-        anything more vertical than horizontal is the page being scrolled, which
-        is why the row yields pan-y to the browser and this never captures it. */
+    /** Drag a row to either side to take it out of the list. The gesture
+        itself is shared with the document library; all that differs is what
+        the completed swipe means. */
     function makeSwipeable(row, card, item) {
-      var startX = 0;
-      var startY = 0;
-      var dragging = false;
-      var offset = 0;
-
-      function threshold() {
-        return Math.max(80, row.offsetWidth * 0.35);
-      }
-
-      function settle() {
-        card.style.transition = 'transform 160ms ease-out';
-        card.style.transform = '';
-        row.classList.remove('is-swiping', 'is-armed');
-        window.setTimeout(function () { card.style.transition = ''; }, 180);
-      }
-
-      card.addEventListener('pointerdown', function (event) {
-        if (event.button !== undefined && event.button !== 0) return;
-        startX = event.clientX;
-        startY = event.clientY;
-        dragging = false;
-        offset = 0;
-      });
-
-      card.addEventListener('pointermove', function (event) {
-        if (!startX && !startY) return;
-        var dx = event.clientX - startX;
-        var dy = event.clientY - startY;
-
-        if (!dragging) {
-          if (Math.abs(dx) < 8 || Math.abs(dx) <= Math.abs(dy)) return;
-          dragging = true;
-          row.classList.add('is-swiping');
-          if (card.setPointerCapture) card.setPointerCapture(event.pointerId);
-        }
-
-        offset = dx;
-        card.style.transform = 'translateX(' + dx + 'px)';
-        row.classList.toggle('is-armed', Math.abs(dx) >= threshold());
-      });
-
-      function finish() {
-        startX = 0;
-        startY = 0;
-        if (!dragging) return;
-        dragging = false;
-
-        // Any drag at all means the release is not a tap on the row, whether
-        // or not it went far enough to remove anything.
-        card.dataset.swiped = 'yes';
-
-        if (Math.abs(offset) < threshold()) {
-          settle();
-          return;
-        }
-
-        card.style.transition = 'transform 140ms ease-in, opacity 140ms ease-in';
-        card.style.transform = 'translateX(' + (offset > 0 ? row.offsetWidth : -row.offsetWidth) + 'px)';
-        card.style.opacity = '0';
-        window.setTimeout(function () {
-          var restore = hideRecord(item);
-          if (restore && options.onHidden) options.onHidden(item, restore);
-        }, 140);
-      }
-
-      card.addEventListener('pointerup', finish);
-      card.addEventListener('pointercancel', function () {
-        startX = 0;
-        startY = 0;
-        if (dragging) { dragging = false; settle(); }
+      Swipe.enable(row, card, function () {
+        var restore = hideRecord(item);
+        if (restore && options.onHidden) options.onHidden(item, restore);
       });
     }
 

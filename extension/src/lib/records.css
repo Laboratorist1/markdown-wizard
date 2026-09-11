@@ -195,6 +195,7 @@ button.rc-field:active, button.rc-field:hover { background: var(--rc-inset); }
 .rc-row-hint {
   position: absolute;
   inset: 0;
+  pointer-events: none;
   display: flex;
   align-items: center;
   justify-content: space-between;

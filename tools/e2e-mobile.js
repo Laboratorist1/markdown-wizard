@@ -109,7 +109,7 @@ async function openDocFormatted(page, name) {
 async function main() {
   // Both apps ship a copy of the shared renderer; drift means they would
   // silently render the same document differently.
-  for (const file of ['markdown.js', 'markdown.css']) {
+  for (const file of fs.readdirSync(path.join(ROOT, 'shared'))) {
     const shared = fs.readFileSync(path.join(ROOT, 'shared', file), 'utf8');
     const mine = fs.readFileSync(path.join(ROOT, 'lib', file), 'utf8');
     check(`lib/${file} matches shared/ (run tools/sync-shared.sh)`, mine === shared, true);
@@ -258,6 +258,70 @@ async function main() {
   await page.click('.prompt-button.danger');
   await page.waitForFunction(() => document.querySelectorAll('.doc-item').length === 3);
   check('delete removes exactly one document', await docCount(page), 3);
+
+  /* ----------------------------------------- hiding from the library */
+
+  // Hiding a document tidies the list. It is not a delete: the document stays
+  // on the device, whole, and comes back on request.
+  const beforeHiding = await docIds(page);
+  await swipeRow(page, '.doc-item:has-text("Packing")', -260);
+  await page.waitForFunction(() => document.querySelectorAll('.doc-item').length === 2);
+  check('a swiped document leaves the list', await docCount(page), 2);
+  check('and the document itself is untouched', (await docIds(page)).length, beforeHiding.length);
+  check('its text is still there', await page.evaluate(async () => {
+    const rows = await window.MarkdownWizardMobile.Library.list();
+    const row = rows.filter((r) => r.title === 'Packing')[0];
+    const doc = await window.MarkdownWizardMobile.Library.read(row.id);
+    return doc.text.length > 0;
+  }), true);
+
+  await page.waitForFunction(
+    () => document.getElementById('toast').textContent.indexOf('Hidden from the list') === 0);
+  check('the message says hidden, not deleted',
+    (await page.textContent('#toast')).indexOf('Hidden from the list · Packing') === 0, true);
+
+  check('the count still counts it as on this device',
+    (await page.textContent('#storage-line')).indexOf('3 documents') !== -1, true);
+  check('and says how many are out of the list',
+    (await page.textContent('#storage-line')).indexOf('1 hidden') !== -1, true);
+
+  // A tidied list should stay tidied; this is a choice, not a session quirk.
+  await page.reload();
+  await page.waitForFunction(() => !!window.MarkdownWizardMobile);
+  await page.waitForSelector('#screen-library:not([hidden])');
+  check('hiding survives a reload', await docCount(page), 2);
+
+  await page.click('#show-hidden');
+  await page.waitForFunction(() => document.querySelectorAll('.doc-item').length === 3);
+  check('Show hidden brings them into view', await docCount(page), 3);
+  check('a hidden document is marked as such',
+    await page.isVisible('.doc-item.is-hidden-doc:has-text("Packing")'), true);
+
+  // Swiping the other way, on a row that is already hidden, puts it back.
+  await swipeRow(page, '.doc-item:has-text("Packing")', 260);
+  await page.waitForFunction(
+    () => document.getElementById('toast').textContent.indexOf('Back in the list') === 0);
+  check('swiping a hidden document restores it',
+    await page.isHidden('.doc-item.is-hidden-doc'), true);
+  check('nothing is hidden any more',
+    (await page.textContent('#storage-line')).indexOf('hidden') === -1, true);
+  check('the whole library is listed again', await docCount(page), 3);
+
+  // The gesture is not the only way in: the menu says the same thing in words.
+  await page.click('.doc-item:has-text("Packing") .doc-more');
+  check('the menu offers hiding too',
+    await page.isVisible('.sheet-item:has-text("Hide from list")'), true);
+  await page.click('.sheet-item:has-text("Hide from list")');
+  await page.waitForFunction(() => document.querySelectorAll('.doc-item').length === 2);
+  check('the menu hides it as well', await docCount(page), 2);
+
+  await page.click('#show-hidden');
+  await page.waitForFunction(() => document.querySelectorAll('.doc-item').length === 3);
+  await page.click('.doc-item:has-text("Packing") .doc-more');
+  await page.click('.sheet-item:has-text("Show in list")');
+  await page.waitForFunction(
+    () => document.getElementById('toast').textContent.indexOf('Back in the list') === 0);
+  check('and offers the way back once hidden', await docCount(page), 3);
 
   /* --------------------------------------------------------- search + UI */
 
